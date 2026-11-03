@@ -1,0 +1,1427 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#d9dcdf" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#24282d" media="(prefers-color-scheme: dark)">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="Tareas">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<link rel="apple-touch-icon" href="apple-touch-icon.png">
+<link rel="icon" href="icon-192.png">
+<link rel="manifest" href="manifest.webmanifest">
+<title>Mis tareas</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Archivo:wdth,wght@62..125,400..800&display=swap">
+<style>
+/* =========================================================
+   1. DESIGN TOKENS
+   Concepto: tarjetero T-card — rack de acero con ranuras
+   y tarjetas de cartulina en forma de T.
+   Para cambiar el look, empezá SIEMPRE por acá.
+   ========================================================= */
+:root {
+  /* Tipografía: una familia, distintos anchos (eje wdth) */
+  --font: "Archivo", "Arial Narrow", system-ui, sans-serif;
+  --wdth-condensed: 72%;   /* títulos y etiquetas del rack */
+  --wdth-card: 88%;        /* títulos de tarjeta */
+  --wdth-text: 100%;       /* texto corrido */
+
+  /* Escala tipográfica (≈1.2) */
+  --fs-xs: 0.75rem;   /* 12 */
+  --fs-sm: 0.875rem;  /* 14 */
+  --fs-md: 1rem;      /* 16 */
+  --fs-lg: 1.25rem;   /* 20 */
+  --fs-xl: 1.625rem;  /* 26 */
+
+  /* Espaciado */
+  --space-1: 4px;
+  --space-2: 8px;
+  --space-3: 12px;
+  --space-4: 16px;
+  --space-5: 24px;
+  --space-6: 32px;
+
+  /* Radios con jerarquía: papel casi recto, chapa algo más redondeada */
+  --radius-card: 2px;
+  --radius-control: 4px;
+  --radius-rack: 6px;
+
+  /* Layout */
+  --column-width: 86vw;   /* mobile; en desktop pasa a 300px (sección 8) */
+  --card-inset: 14px;     /* cuánto más angosto es el cuerpo de la T */
+  --transition: 140ms ease;
+
+  /* Esmaltes de las placas de cada columna (los usa COLUMNS en app.js) */
+  --c-slate: #7a8591;
+  --c-sky: #3d6ea8;
+  --c-amber: #b9831c;
+  --c-emerald: #4f8a5b;
+  --c-rose: #b4533c;
+  --c-violet: #6f5a9e;
+
+  /* Cartulinas por prioridad */
+  --stock-alta: #f0b49c;
+  --stock-media: #efd9a0;
+  --stock-baja: #c9dcbc;
+  --card-ink: #22262b;          /* tinta sobre cartulina: igual en ambos temas */
+  --card-ink-muted: #4d535a;
+  --card-edge: rgb(34 38 43 / 0.18);
+}
+
+/* ---------- Tema claro (default): acero pintado ---------- */
+:root {
+  --bg: #d9dcdf;
+  --rack: #cdd1d5;
+  --slot: rgb(34 38 43 / 0.09);
+  --plate: #eceef0;
+  --surface: #f4f5f6;
+  --border: #b9bec4;
+  --text: #22262b;
+  --text-muted: #5c636b;
+  --primary: #1f4e8c;
+  --primary-hover: #183f73;
+  --primary-text: #ffffff;
+  --danger: #a83a24;
+  --focus: #1f4e8c;
+  --card-shadow: 0 1px 0 rgb(34 38 43 / 0.25);
+  --overdue: #8c2c18;
+  --flash: #1f4e8c;
+}
+
+/* ---------- Tema oscuro: grafito; las tarjetas siguen siendo papel ---------- */
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #24282d;
+    --rack: #2c3137;
+    --slot: rgb(255 255 255 / 0.05);
+    --plate: #383e45;
+    --surface: #31363c;
+    --border: #4a5159;
+    --text: #e3e5e8;
+    --text-muted: #a0a7af;
+    --primary: #5b8fd1;
+    --primary-hover: #74a2dc;
+    --primary-text: #10233d;
+    --danger: #f08a73;
+    --focus: #8db3e2;
+    --stock-alta: #dc9f88;
+    --stock-media: #dbc58c;
+    --stock-baja: #b2c7a5;
+    --card-shadow: 0 1px 0 rgb(0 0 0 / 0.5);
+    --overdue: #8a2a17;
+  --flash: #8db3e2;
+    color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --bg: #24282d;
+  --rack: #2c3137;
+  --slot: rgb(255 255 255 / 0.05);
+  --plate: #383e45;
+  --surface: #31363c;
+  --border: #4a5159;
+  --text: #e3e5e8;
+  --text-muted: #a0a7af;
+  --primary: #5b8fd1;
+  --primary-hover: #74a2dc;
+  --primary-text: #10233d;
+  --danger: #f08a73;
+  --focus: #8db3e2;
+  --stock-alta: #dc9f88;
+  --stock-media: #dbc58c;
+  --stock-baja: #b2c7a5;
+  --card-shadow: 0 1px 0 rgb(0 0 0 / 0.5);
+  --overdue: #8a2a17;
+  --flash: #8db3e2;
+  color-scheme: dark;
+}
+
+/* =========================================================
+   2. BASE
+   ========================================================= */
+*,
+*::before,
+*::after { box-sizing: border-box; }
+
+[hidden] { display: none !important; }
+
+html, body { height: 100%; }
+
+body {
+  margin: 0;
+  font-family: var(--font);
+  font-stretch: var(--wdth-text);
+  font-size: var(--fs-md);
+  line-height: 1.45;
+  color: var(--text);
+  background: var(--bg);
+  display: flex;
+  flex-direction: column;
+  -webkit-font-smoothing: antialiased;
+}
+
+h1, h2, h3, p { margin: 0; }
+
+:focus-visible {
+  outline: 2px solid var(--focus);
+  outline-offset: 2px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after { transition: none !important; animation: none !important; }
+}
+
+/* =========================================================
+   3. COMPONENTES GENÉRICOS (botones, inputs)
+   ========================================================= */
+.btn {
+  display: inline-flex;
+  flex-shrink: 0;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-2);
+  height: 40px; /* área táctil cómoda */
+  padding: 0 var(--space-4);
+  border: 1px solid transparent;
+  border-radius: var(--radius-control);
+  font: inherit;
+  font-size: var(--fs-sm);
+  font-weight: 600;
+  color: var(--text);
+  background: transparent;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: background var(--transition), border-color var(--transition);
+}
+
+.btn--primary { background: var(--primary); color: var(--primary-text); }
+.btn--primary:hover { background: var(--primary-hover); }
+
+.btn--ghost { border-color: var(--border); background: var(--surface); }
+.btn--ghost:hover { border-color: var(--text-muted); }
+
+.btn--danger { color: var(--danger); padding-left: 0; }
+.btn--danger:hover { text-decoration: underline; }
+
+.btn--icon { width: 40px; padding: 0; font-size: var(--fs-lg); line-height: 1; }
+
+.input {
+  width: 100%;
+  min-height: 40px;
+  padding: var(--space-2) var(--space-3);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-control);
+  font: inherit;
+  font-size: var(--fs-md); /* 16px en mobile: evita el zoom de iOS */
+  color: var(--text);
+  background: var(--surface);
+  box-shadow: inset 0 1px 2px rgb(0 0 0 / 0.08);
+  transition: border-color var(--transition);
+}
+.input::placeholder { color: var(--text-muted); }
+.input:focus { outline: none; border-color: var(--focus); }
+textarea.input { resize: vertical; line-height: 1.5; }
+select.input option { background: var(--surface); color: var(--text); }
+
+.spacer { flex: 1; }
+
+/* =========================================================
+   4. TOPBAR (mobile first: base = celular)
+   ========================================================= */
+.topbar {
+  position: sticky;
+  top: 0;
+  z-index: 10;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-3);
+  padding-block: var(--space-3);
+  padding-left: max(16px, env(safe-area-inset-left, 0px));
+  padding-right: max(16px, env(safe-area-inset-right, 0px));
+  border-bottom: 1px solid var(--border);
+  background: var(--bg);
+}
+.topbar { top: env(safe-area-inset-top, 0px); }
+body::before {
+  content: "";
+  position: fixed;
+  inset: 0 0 auto;
+  height: env(safe-area-inset-top, 0px);
+  z-index: 10;
+  background: var(--bg);
+}
+
+.topbar__brand { display: flex; align-items: center; gap: var(--space-3); flex: 1; }
+
+/* Logo: una T-card dibujada con fondos */
+.topbar__logo {
+  width: 22px;
+  height: 28px;
+  background:
+    linear-gradient(var(--stock-media), var(--stock-media)) top / 100% 9px no-repeat,
+    linear-gradient(var(--stock-media), var(--stock-media)) center / 64% 100% no-repeat;
+  filter: drop-shadow(0 0 0.5px var(--card-ink)) drop-shadow(0 1px 0 var(--card-edge));
+}
+
+.topbar__title {
+  font-size: var(--fs-xl);
+  font-weight: 760;
+  font-stretch: var(--wdth-condensed);
+  letter-spacing: -0.01em;
+  line-height: 1;
+}
+
+.topbar__actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-2);
+  width: 100%;
+}
+.topbar__search { flex: 1 1 100%; order: -1; }
+.topbar__actions .btn--ghost:not(.btn--icon) { padding: 0 var(--space-3); }
+#btn-new { flex: 1; padding: 0 var(--space-3); }
+
+/* Atajos a columnas (solo mobile) */
+.colnav {
+  display: flex;
+  gap: var(--space-2);
+  padding-block: var(--space-3) 0;
+  padding-left: max(16px, env(safe-area-inset-left, 0px));
+  padding-right: max(16px, env(safe-area-inset-right, 0px));
+  overflow-x: auto;
+  scrollbar-width: none;
+}
+.colnav::-webkit-scrollbar { display: none; }
+
+.colnav__chip {
+  flex: 0 0 auto;
+  height: 34px;
+  padding: 0 var(--space-3) 0 var(--space-2);
+  border: 1px solid var(--border);
+  border-left: 5px solid var(--column-accent);
+  border-radius: var(--radius-control);
+  font: inherit;
+  font-size: var(--fs-sm);
+  font-weight: 600;
+  font-stretch: var(--wdth-condensed);
+  color: var(--text);
+  background: var(--plate);
+  cursor: pointer;
+}
+
+/* Estado de sincronización junto al título */
+.topbar__status {
+  font-size: var(--fs-xs);
+  font-weight: 600;
+  color: var(--text-muted);
+}
+.topbar__status:empty { display: none; }
+
+/* Pedidos a Claude */
+.ask {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  padding-block: var(--space-3);
+  padding-left: max(16px, env(safe-area-inset-left, 0px));
+  padding-right: max(16px, env(safe-area-inset-right, 0px));
+  border-bottom: 1px solid var(--border);
+  background: var(--plate);
+}
+.ask__label {
+  font-size: var(--fs-sm);
+  font-weight: 680;
+  font-stretch: var(--wdth-condensed);
+}
+.ask__row { display: flex; gap: var(--space-2); align-items: flex-end; }
+.ask__input { flex: 1; min-width: 0; resize: none; min-height: 64px; max-height: 140px; }
+.ask__reply { font-size: var(--fs-sm); color: var(--text-muted); max-width: 70ch; }
+.ask__reply:empty { display: none; }
+.ask__reply.is-error { color: var(--danger); }
+.ask.is-busy .ask__send { opacity: 0.6; pointer-events: none; }
+
+/* Login: una T-card grande */
+.login {
+  min-height: 100%;
+  display: grid;
+  place-items: start center;
+  padding-block: 12vh var(--space-6);
+  padding-left: max(16px, env(safe-area-inset-left, 0px));
+  padding-right: max(16px, env(safe-area-inset-right, 0px));
+}
+.login__card { width: min(400px, 100%); color: var(--card-ink); filter: drop-shadow(var(--card-shadow)); }
+.login__head {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  padding: var(--space-4) var(--space-5);
+  border-radius: var(--radius-card) var(--radius-card) 0 0;
+  background: var(--stock-media);
+}
+.login__title { font-size: var(--fs-xl); font-weight: 760; font-stretch: var(--wdth-condensed); line-height: 1; }
+.login__body {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+  margin: 0 var(--card-inset);
+  padding: var(--space-5) var(--space-4);
+  border-radius: 0 0 var(--radius-card) var(--radius-card);
+  background: var(--stock-media);
+  box-shadow: inset 0 1px 0 var(--card-edge);
+}
+.login__body .field__label { color: var(--card-ink-muted); }
+.login__body .input { background: rgb(255 255 255 / 0.7); border-color: var(--card-edge); color: var(--card-ink); }
+.login__msg { font-size: var(--fs-sm); color: var(--card-ink); }
+.login__msg:empty { display: none; }
+.btn--link { height: auto; padding: 0; align-self: center; color: var(--card-ink); text-decoration: underline; font-weight: 500; }
+
+.app { display: flex; flex-direction: column; min-height: 100%; }
+
+/* =========================================================
+   5. TABLERO Y COLUMNAS (racks)
+   ========================================================= */
+.board {
+  flex: 1;
+  display: flex;
+  align-items: flex-start;
+  gap: var(--space-3);
+  padding-block: var(--space-4);
+  padding-left: max(16px, env(safe-area-inset-left, 0px));
+  padding-right: max(16px, env(safe-area-inset-right, 0px));
+  overflow-x: auto;
+  scroll-snap-type: x mandatory;
+  scroll-padding: var(--space-4);
+}
+
+.column {
+  --column-accent: var(--c-slate); /* lo sobrescribe app.js según COLUMNS */
+  flex: 0 0 var(--column-width);
+  display: flex;
+  flex-direction: column;
+  max-height: 100%;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-rack);
+  background: var(--rack);
+  scroll-snap-align: start;
+  overflow: hidden;
+}
+
+/* Placa con el nombre de la columna */
+.column__header {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  padding: var(--space-2) var(--space-2) var(--space-2) var(--space-3);
+  border-bottom: 1px solid var(--border);
+  background: var(--plate);
+}
+
+.column__dot {
+  align-self: stretch;
+  width: 5px;
+  margin: calc(var(--space-2) * -1) 0 calc(var(--space-2) * -1) calc(var(--space-3) * -1);
+  background: var(--column-accent);
+}
+
+.column__title {
+  flex: 1;
+  margin-left: var(--space-1);
+  font-size: var(--fs-lg);
+  line-height: 1.1;
+  font-weight: 680;
+  font-stretch: var(--wdth-condensed);
+}
+
+.column__count {
+  font-size: var(--fs-sm);
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  color: var(--text-muted);
+}
+
+.column__add { width: 34px; height: 34px; font-size: var(--fs-lg); }
+
+/* Ranuras del rack: líneas horizontales finas detrás de las tarjetas */
+.column__list {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  min-height: 140px;
+  padding: var(--space-3);
+  overflow-y: auto;
+  background-image: repeating-linear-gradient(
+    to bottom,
+    transparent 0 23px,
+    var(--slot) 23px 24px
+  );
+  transition: background-color var(--transition);
+}
+
+.column__list:empty::after {
+  content: "Sin tarjetas. Arrastrá una acá o tocá +";
+  padding: var(--space-4) var(--space-2);
+  font-size: var(--fs-sm);
+  color: var(--text-muted);
+  text-align: center;
+}
+
+/* Estado: arrastrando sobre la columna */
+.column__list.is-over {
+  background-color: color-mix(in srgb, var(--column-accent) 14%, transparent);
+}
+
+/* =========================================================
+   6. TARJETAS EN T
+   ========================================================= */
+.card {
+  --stock: var(--stock-media);
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  color: var(--card-ink);
+  cursor: grab;
+  filter: drop-shadow(var(--card-shadow));
+  transition: transform var(--transition);
+}
+
+.card[data-priority="baja"]  { --stock: var(--stock-baja); }
+.card[data-priority="media"] { --stock: var(--stock-media); }
+.card[data-priority="alta"]  { --stock: var(--stock-alta); }
+
+/* Cabeza de la T: ancho completo */
+.card__head {
+  display: flex;
+  align-items: baseline;
+  gap: var(--space-2);
+  padding: var(--space-2) var(--space-3);
+  border-radius: var(--radius-card) var(--radius-card) 0 0;
+  background: var(--stock);
+}
+
+.card__title {
+  flex: 1;
+  font-size: var(--fs-md);
+  font-weight: 640;
+  font-stretch: var(--wdth-card);
+  line-height: 1.25;
+}
+
+.card__priority {
+  font-size: var(--fs-xs);
+  font-weight: 600;
+  color: var(--card-ink-muted);
+}
+
+/* Cuerpo de la T: más angosto */
+.card__body {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  margin: 0 var(--card-inset);
+  padding: var(--space-1) var(--space-3) var(--space-3);
+  border-radius: 0 0 var(--radius-card) var(--radius-card);
+  background: var(--stock);
+  /* línea de corte entre cabeza y cuerpo */
+  box-shadow: inset 0 1px 0 var(--card-edge);
+}
+
+.card__desc {
+  font-size: var(--fs-sm);
+  line-height: 1.5;
+  color: var(--card-ink-muted);
+  display: -webkit-box;
+  -webkit-line-clamp: 3;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+.card__meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-1) var(--space-3);
+  font-size: var(--fs-xs);
+  font-weight: 600;
+  color: var(--card-ink-muted);
+}
+.card__meta:not(:has(:not([hidden]):not(:empty))) { display: none; }
+.card__tag::before { content: "#"; }
+.card__due:empty { display: none; }
+
+/* Pasar a la siguiente columna (táctil) */
+.card__move {
+  align-self: flex-start;
+  height: 32px;
+  padding: 0 var(--space-3);
+  border: 1px solid var(--card-edge);
+  border-radius: var(--radius-control);
+  font: inherit;
+  font-size: var(--fs-xs);
+  font-weight: 600;
+  color: var(--card-ink);
+  background: rgb(255 255 255 / 0.35);
+  cursor: pointer;
+}
+.card__move::before { content: "Pasar a\00a0"; font-weight: 400; }
+
+/* Personas: quién pidió y con quién hablar */
+.card__people {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-1) var(--space-3);
+  margin: 0;
+  font-size: var(--fs-xs);
+  color: var(--card-ink);
+}
+.card__person { display: flex; gap: var(--space-1); }
+.card__person dt { color: var(--card-ink-muted); }
+.card__person dd { margin: 0; font-weight: 650; }
+.card__people:not(:has(.card__person:not([hidden]))) { display: none; }
+
+/* Estados */
+.card.is-new { animation: card-new 1.6s ease-out; }
+@keyframes card-new {
+  0%, 30% { outline: 3px solid var(--flash); outline-offset: 2px; }
+  100% { outline: 3px solid transparent; outline-offset: 6px; }
+}
+.card.is-dragging { opacity: 0.55; transform: rotate(-2deg); cursor: grabbing; }
+.card.is-overdue .card__due { color: var(--overdue); }
+
+/* Columna final: cartulina archivada */
+.column[data-column="done"] .card { filter: drop-shadow(var(--card-shadow)) saturate(0.25); }
+.column[data-column="done"] .card__title { text-decoration: line-through; text-decoration-thickness: 1px; }
+
+/* =========================================================
+   7. MODAL
+   ========================================================= */
+.modal {
+  /* mobile: hoja inferior */
+  width: 100%;
+  max-width: 100%;
+  margin: auto 0 0;
+  padding: 0;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-rack) var(--radius-rack) 0 0;
+  color: var(--text);
+  background: var(--plate);
+}
+.modal::backdrop { background: rgb(20 23 27 / 0.55); }
+.btn--danger.is-confirming { background: var(--danger); color: var(--primary-text); padding: 0 var(--space-4); }
+.modal[open] { animation: sheet-in 200ms ease-out; }
+
+.modal__form {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+  padding: var(--space-5) var(--space-4);
+  padding-bottom: max(var(--space-5), env(safe-area-inset-bottom));
+}
+
+.modal__title {
+  font-size: var(--fs-xl);
+  font-weight: 760;
+  font-stretch: var(--wdth-condensed);
+  line-height: 1.1;
+}
+
+.modal__actions { display: flex; align-items: center; gap: var(--space-2); margin-top: var(--space-2); }
+
+.field { display: flex; flex-direction: column; gap: var(--space-1); flex: 1; }
+.field__label { font-size: var(--fs-sm); font-weight: 600; color: var(--text-muted); }
+.field-row { display: flex; flex-direction: column; gap: var(--space-4); }
+
+@keyframes sheet-in {
+  from { transform: translateY(24px); opacity: 0; }
+  to   { transform: none; opacity: 1; }
+}
+
+/* =========================================================
+   8. RESPONSIVE — mobile first: se agregan mejoras hacia arriba
+   ========================================================= */
+
+/* Tablet en adelante */
+@media (min-width: 768px) {
+  :root { --column-width: 300px; }
+
+  .topbar { padding-block: var(--space-4); justify-content: space-between; }
+  .topbar__brand { flex: 0 1 auto; }
+  .topbar__actions { width: auto; }
+  .topbar__search { flex: 0 0 220px; order: 0; }
+  #btn-new { flex: 0 0 auto; padding: 0 var(--space-4); }
+  .topbar__actions .btn--ghost:not(.btn--icon) { padding: 0 var(--space-4); }
+  .input { font-size: var(--fs-sm); }
+
+  .colnav { display: none; }
+  .ask__input { min-height: 40px; }
+
+  .board { gap: var(--space-4); padding-block: var(--space-5); scroll-snap-type: none; }
+
+  .field-row { flex-direction: row; gap: var(--space-3); }
+
+  .modal {
+    width: min(520px, calc(100vw - 32px));
+    margin: auto;
+    border-radius: var(--radius-rack);
+  }
+  .modal__form { padding: var(--space-5); }
+
+  /* En desktop se arrastra; el botón para pasar de columna aparece al apuntar */
+  .card__move { display: none; }
+  .card:hover .card__move,
+  .card:focus-within .card__move { display: inline-flex; align-items: center; }
+  .card__body:not(:has(.card__desc:not([hidden]), .card__meta *:not([hidden]):not(:empty))) {
+    padding-bottom: var(--space-2);
+  }
+}
+
+/* Pantallas grandes: las columnas reparten el ancho */
+@media (min-width: 1280px) {
+  .column { flex: 1 1 0; min-width: 260px; }
+}
+
+</style>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.min.js"></script>
+</head>
+<body>
+
+<!-- =====================================================
+     LOGIN — se muestra si no hay sesión
+     ===================================================== -->
+<main class="login" id="login" hidden>
+  <form class="login__card" id="login-form">
+    <header class="login__head">
+      <h1 class="login__title">Mis tareas</h1>
+    </header>
+    <div class="login__body">
+      <label class="field">
+        <span class="field__label">Mail</span>
+        <input class="input" id="login-email" type="email" autocomplete="email" required>
+      </label>
+      <label class="field">
+        <span class="field__label">Contraseña</span>
+        <input class="input" id="login-password" type="password" autocomplete="current-password" minlength="6" required>
+      </label>
+      <button class="btn btn--primary" id="login-submit" type="submit">Entrar</button>
+      <button class="btn btn--link" id="login-toggle" type="button">Crear cuenta</button>
+      <p class="login__msg" id="login-msg" aria-live="polite"></p>
+    </div>
+  </form>
+</main>
+
+<div class="app" id="app" hidden>
+
+<!-- =====================================================
+     HEADER — título, búsqueda y acciones globales
+     ===================================================== -->
+<header class="topbar">
+  <div class="topbar__brand">
+    <span class="topbar__logo" aria-hidden="true"></span>
+    <h1 class="topbar__title">Mis tareas</h1>
+    <span class="topbar__status" id="status"></span>
+  </div>
+
+  <div class="topbar__actions">
+    <input class="input topbar__search" id="search" type="search" placeholder="Buscar tareas, personas, etiquetas" autocomplete="off">
+    <button class="btn btn--ghost btn--icon" id="btn-theme" type="button" title="Cambiar tema" aria-label="Cambiar tema">☾</button>
+    <button class="btn btn--ghost" id="btn-export" type="button">Exportar</button>
+    <label class="btn btn--ghost" for="input-import">Importar</label>
+    <input type="file" id="input-import" accept="application/json" hidden>
+    <button class="btn btn--primary" id="btn-new" type="button">+ Nueva tarea</button>
+    <button class="btn btn--ghost" id="btn-logout" type="button">Salir</button>
+  </div>
+</header>
+
+<!-- =====================================================
+     PEDIDOS A CLAUDE — los procesa la función "pedido"
+     de Supabase, que llama a la API de Anthropic
+     ===================================================== -->
+<form class="ask" id="ask">
+  <label class="ask__label" for="ask-input">Pedile a Claude</label>
+  <div class="ask__row">
+    <textarea class="input ask__input" id="ask-input" rows="1" placeholder="Elvio pidió revisar la impresora de guardia, alta, para el viernes. Hablar con Montoto."></textarea>
+    <button class="btn btn--primary ask__send" id="ask-send" type="submit">Enviar</button>
+  </div>
+  <p class="ask__reply" id="ask-reply" aria-live="polite"></p>
+</form>
+
+<!-- Atajos a columnas (visibles en mobile) -->
+<nav class="colnav" id="colnav" aria-label="Ir a columna"></nav>
+
+<!-- =====================================================
+     TABLERO — las columnas se generan desde COLUMNS (app.js)
+     ===================================================== -->
+<main class="board" id="board" aria-label="Tablero de tareas"></main>
+
+<!-- =====================================================
+     TEMPLATES — markup de columnas y tarjetas
+     ===================================================== -->
+<template id="tpl-column">
+  <section class="column">
+    <header class="column__header">
+      <span class="column__dot" aria-hidden="true"></span>
+      <h2 class="column__title"></h2>
+      <span class="column__count">0</span>
+      <button class="column__add btn btn--ghost btn--icon" type="button" title="Agregar tarea" aria-label="Agregar tarea">+</button>
+    </header>
+    <div class="column__list"></div>
+  </section>
+</template>
+
+<template id="tpl-card">
+  <!-- Tarjeta en T: cabeza ancha (título + prioridad) y cuerpo angosto -->
+  <article class="card" draggable="true" tabindex="0">
+    <header class="card__head">
+      <h3 class="card__title"></h3>
+      <span class="card__priority"></span>
+    </header>
+    <div class="card__body">
+      <p class="card__desc"></p>
+      <dl class="card__people">
+        <div class="card__person card__requester"><dt>Pidió</dt><dd></dd></div>
+        <div class="card__person card__contact"><dt>Hablar con</dt><dd></dd></div>
+      </dl>
+      <div class="card__meta">
+        <span class="card__tag"></span>
+        <span class="card__due"></span>
+      </div>
+      <button class="card__move" type="button"></button>
+    </div>
+  </article>
+</template>
+
+<!-- =====================================================
+     MODAL — crear / editar tarea
+     ===================================================== -->
+<dialog class="modal" id="modal">
+  <form class="modal__form" id="task-form">
+    <h2 class="modal__title" id="modal-title">Nueva tarea</h2>
+
+    <label class="field">
+      <span class="field__label">Título</span>
+      <input class="input" id="f-title" name="title" required maxlength="120">
+    </label>
+
+    <label class="field">
+      <span class="field__label">Descripción</span>
+      <textarea class="input" id="f-desc" name="desc" rows="3"></textarea>
+    </label>
+
+    <div class="field-row">
+      <label class="field">
+        <span class="field__label">Pidió</span>
+        <input class="input" id="f-requester" name="requester" maxlength="60" placeholder="ej: Elvio">
+      </label>
+      <label class="field">
+        <span class="field__label">Hablar con</span>
+        <input class="input" id="f-contact" name="contact" maxlength="60" placeholder="ej: Montoto">
+      </label>
+    </div>
+
+    <div class="field-row">
+      <label class="field">
+        <span class="field__label">Prioridad</span>
+        <select class="input" id="f-priority" name="priority"></select>
+      </label>
+      <label class="field">
+        <span class="field__label">Columna</span>
+        <select class="input" id="f-column" name="column"></select>
+      </label>
+    </div>
+
+    <div class="field-row">
+      <label class="field">
+        <span class="field__label">Etiqueta</span>
+        <input class="input" id="f-tag" name="tag" placeholder="ej: clínica" maxlength="30">
+      </label>
+      <label class="field">
+        <span class="field__label">Vence</span>
+        <input class="input" type="date" id="f-due" name="due">
+      </label>
+    </div>
+
+    <div class="modal__actions">
+      <button class="btn btn--danger" id="btn-delete" type="button">Eliminar</button>
+      <span class="spacer"></span>
+      <button class="btn btn--ghost" id="btn-cancel" type="button">Cancelar</button>
+      <button class="btn btn--primary" type="submit">Guardar</button>
+    </div>
+  </form>
+</dialog>
+
+</div>
+
+<script>
+/* Datos públicos del proyecto Supabase (seguros en el navegador:
+   la base solo deja ver a cada usuario sus propias tareas). */
+window.KANBAN_CONFIG = {
+  supabaseUrl: "https://thtrdqmdzctmazljbtvn.supabase.co",
+  supabaseKey: "sb_publishable_KNgvniOPDVrlQ3dMTGpbLA_HTmLZAPh",
+};
+
+</script>
+<script>
+/* =========================================================
+   1. CONFIG — columnas y prioridades del tablero.
+   Agregá, quitá o renombrá columnas acá; el resto se adapta solo.
+   `color` usa los tokens de styles.css.
+   ========================================================= */
+const COLUMNS = [
+  { id: "todo",   title: "Pendiente",   color: "var(--c-slate)" },
+  { id: "doing",  title: "En curso",    color: "var(--c-sky)" },
+  { id: "review", title: "En revisión", color: "var(--c-amber)" },
+  { id: "done",   title: "Hecho",       color: "var(--c-emerald)" },
+];
+
+const PRIORITIES = { alta: "Alta", media: "Media", baja: "Baja" };
+
+const FIELDS = ["title", "desc", "requester", "contact", "priority", "column", "tag", "due"];
+const THEME_KEY = "kanban.theme";      // preferencia de tema de cada persona
+
+/* =========================================================
+   2. ALMACENAMIENTO (Supabase)
+   Tabla public.tasks. Cada usuario ve solo sus filas (RLS).
+   La página usa nombres cortos; la base usa nombres SQL:
+   desc ↔ description · column ↔ status · order ↔ position
+   ========================================================= */
+const { supabaseUrl, supabaseKey } = window.KANBAN_CONFIG;
+const sb = window.supabase.createClient(supabaseUrl, supabaseKey);
+
+let tasks = [];            // [{id, title, ..., order}]
+const justAdded = new Set();
+
+function todayISO(offsetDays = 0) {
+  const d = new Date();
+  d.setDate(d.getDate() + offsetDays);
+  const p = (n) => String(n).padStart(2, "0");
+  return `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())}`;
+}
+
+function fromRow(r) {
+  return {
+    id: r.id,
+    title: r.title || "",
+    desc: r.description || "",
+    requester: r.requester || "",
+    contact: r.contact || "",
+    priority: PRIORITIES[r.priority] ? r.priority : "media",
+    column: COLUMNS.some((c) => c.id === r.status) ? r.status : COLUMNS[0].id,
+    tag: r.tag || "",
+    due: r.due || "",
+    order: Number(r.position) || 0,
+  };
+}
+
+function toRow(t) {
+  const row = {};
+  if ("title" in t) row.title = t.title;
+  if ("desc" in t) row.description = t.desc;
+  if ("requester" in t) row.requester = t.requester;
+  if ("contact" in t) row.contact = t.contact;
+  if ("priority" in t) row.priority = PRIORITIES[t.priority] ? t.priority : "media";
+  if ("column" in t) row.status = COLUMNS.some((c) => c.id === t.column) ? t.column : COLUMNS[0].id;
+  if ("tag" in t) row.tag = t.tag;
+  if ("due" in t) row.due = t.due || null;
+  if ("order" in t) row.position = t.order;
+  return row;
+}
+
+/* Toma solo los campos conocidos de un objeto (importación) */
+function pick(input) {
+  const out = {};
+  for (const f of FIELDS) if (typeof input[f] === "string") out[f] = input[f].trim();
+  return out;
+}
+
+function sortTasks() {
+  tasks.sort((a, b) => a.order - b.order);
+}
+
+async function fetchTasks() {
+  const { data, error } = await sb.from("tasks").select("*").order("position");
+  if (error) { showError(error); return; }
+  tasks = data.map(fromRow);
+  sortTasks();
+  render();
+}
+
+/* Aplica el cambio en pantalla al instante y lo confirma con la base */
+const store = {
+  async create(data) {
+    const col = data.column || COLUMNS[0].id;
+    const maxOrder = Math.max(0, ...tasks.filter((t) => t.column === col).map((t) => t.order));
+    const row = toRow({ priority: "media", ...data, column: col, order: maxOrder + 1 });
+    const { data: saved, error } = await sb.from("tasks").insert(row).select().single();
+    if (error) throw error;
+    const task = fromRow(saved);
+    justAdded.add(task.id);
+    if (!tasks.some((t) => t.id === task.id)) tasks.push(task);
+    sortTasks();
+    render();
+    return task;
+  },
+
+  async update(id, patch) {
+    const current = tasks.find((t) => t.id === id);
+    if (!current) throw new Error(`No existe la tarea ${id}`);
+    Object.assign(current, patch);
+    sortTasks();
+    render();
+    const { error } = await sb.from("tasks").update(toRow(patch)).eq("id", id);
+    if (error) { await fetchTasks(); throw error; }
+  },
+
+  async remove(id) {
+    tasks = tasks.filter((t) => t.id !== id);
+    render();
+    const { error } = await sb.from("tasks").delete().eq("id", id);
+    if (error) { await fetchTasks(); throw error; }
+  },
+};
+
+/* Cambios hechos desde otro dispositivo o por Claude: recarga con pausa corta */
+let channel = null;
+let refetchTimer = null;
+function subscribe() {
+  channel = sb.channel("tasks-changes")
+    .on("postgres_changes", { event: "*", schema: "public", table: "tasks" }, () => {
+      clearTimeout(refetchTimer);
+      refetchTimer = setTimeout(fetchTasks, 300);
+    })
+    .subscribe();
+}
+
+/* =========================================================
+   2b. SESIÓN (mail y contraseña)
+   ========================================================= */
+const loginEl = document.getElementById("login");
+const appEl = document.getElementById("app");
+const loginForm = document.getElementById("login-form");
+const loginMsg = document.getElementById("login-msg");
+const loginSubmit = document.getElementById("login-submit");
+const loginToggle = document.getElementById("login-toggle");
+let signingUp = false;
+
+loginToggle.addEventListener("click", () => {
+  signingUp = !signingUp;
+  loginSubmit.textContent = signingUp ? "Crear cuenta" : "Entrar";
+  loginToggle.textContent = signingUp ? "Ya tengo cuenta" : "Crear cuenta";
+  document.getElementById("login-password").autocomplete = signingUp ? "new-password" : "current-password";
+  loginMsg.textContent = "";
+});
+
+loginForm.addEventListener("submit", async (e) => {
+  e.preventDefault();
+  const email = document.getElementById("login-email").value.trim();
+  const password = document.getElementById("login-password").value;
+  loginSubmit.disabled = true;
+  loginMsg.textContent = signingUp ? "Creando cuenta…" : "Entrando…";
+  const { data, error } = signingUp
+    ? await sb.auth.signUp({ email, password })
+    : await sb.auth.signInWithPassword({ email, password });
+  loginSubmit.disabled = false;
+  if (error) {
+    loginMsg.textContent = /confirm/i.test(error.message)
+      ? "Falta confirmar la cuenta. Abrí el link del mail que te mandó Supabase y volvé a entrar."
+      : /invalid/i.test(error.message)
+        ? "Mail o contraseña incorrectos."
+        : `No se pudo: ${error.message}`;
+    return;
+  }
+  if (signingUp && !data.session) {
+    loginMsg.textContent = "Cuenta creada. Confirmala desde el mail que te llegó y después entrá. Si el link abre una página que no carga, igual queda confirmada.";
+    loginToggle.click();
+  }
+});
+
+function showApp(session) {
+  const loggedIn = Boolean(session);
+  loginEl.hidden = loggedIn;
+  appEl.hidden = !loggedIn;
+  if (loggedIn && !channel) {
+    fetchTasks();
+    subscribe();
+  }
+  if (!loggedIn && channel) {
+    sb.removeChannel(channel);
+    channel = null;
+    tasks = [];
+  }
+}
+
+sb.auth.onAuthStateChange((_event, session) => showApp(session));
+
+/* =========================================================
+   3. HELPERS DOM
+   ========================================================= */
+const $ = (sel, root = document) => root.querySelector(sel);
+const fromTemplate = (id) => document.getElementById(id).content.firstElementChild.cloneNode(true);
+
+const board = $("#board");
+const modal = $("#modal");
+const form = $("#task-form");
+const fields = form.elements;
+
+function setStatus(text) {
+  $("#status").textContent = text;
+}
+
+/* =========================================================
+   4. RENDER
+   ========================================================= */
+function render() {
+  const query = $("#search").value.trim().toLowerCase();
+  board.replaceChildren();
+  renderColnav();
+
+  for (const col of COLUMNS) {
+    const colEl = fromTemplate("tpl-column");
+    colEl.dataset.column = col.id;
+    colEl.style.setProperty("--column-accent", col.color);
+    $(".column__title", colEl).textContent = col.title;
+
+    const colTasks = tasks.filter((t) => t.column === col.id);
+    $(".column__count", colEl).textContent = colTasks.length;
+
+    const list = $(".column__list", colEl);
+    for (const task of colTasks) {
+      if (query && !matches(task, query)) continue;
+      list.append(renderCard(task));
+    }
+
+    $(".column__add", colEl).addEventListener("click", () => openModal(null, col.id));
+    bindDropzone(list);
+    board.append(colEl);
+  }
+  justAdded.clear();
+}
+
+/* Chips de navegación: en mobile llevan a cada columna */
+function renderColnav() {
+  const nav = $("#colnav");
+  nav.replaceChildren(...COLUMNS.map((col) => {
+    const chip = document.createElement("button");
+    chip.type = "button";
+    chip.className = "colnav__chip";
+    chip.style.setProperty("--column-accent", col.color);
+    const count = tasks.filter((t) => t.column === col.id).length;
+    chip.textContent = `${col.title} (${count})`;
+    chip.addEventListener("click", () => {
+      board.querySelector(`[data-column="${col.id}"]`)
+        ?.scrollIntoView({ behavior: "smooth", inline: "start", block: "nearest" });
+    });
+    return chip;
+  }));
+}
+
+function matches(task, q) {
+  return [task.title, task.desc, task.tag, task.requester, task.contact]
+    .some((v) => (v || "").toLowerCase().includes(q));
+}
+
+function renderCard(task) {
+  const card = fromTemplate("tpl-card");
+  card.dataset.id = task.id;
+  card.dataset.priority = task.priority;
+  if (justAdded.has(task.id)) card.classList.add("is-new");
+
+  $(".card__title", card).textContent = task.title;
+  $(".card__priority", card).textContent = PRIORITIES[task.priority];
+
+  const desc = $(".card__desc", card);
+  desc.textContent = task.desc;
+  desc.hidden = !task.desc;
+
+  const req = $(".card__requester", card);
+  $("dd", req).textContent = task.requester;
+  req.hidden = !task.requester;
+
+  const contact = $(".card__contact", card);
+  $("dd", contact).textContent = task.contact;
+  contact.hidden = !task.contact;
+
+  const tag = $(".card__tag", card);
+  tag.textContent = task.tag;
+  tag.hidden = !task.tag;
+
+  const due = $(".card__due", card);
+  if (task.due) {
+    const date = new Date(task.due + "T00:00");
+    const label = date.toLocaleDateString("es-AR", { day: "numeric", month: "short" });
+    const today = new Date(); today.setHours(0, 0, 0, 0);
+    const overdue = date < today && task.column !== "done";
+    if (overdue) card.classList.add("is-overdue");
+    due.textContent = `${overdue ? "Venció" : "Vence"} ${label}`;
+  }
+
+  const move = $(".card__move", card);
+  const next = COLUMNS[COLUMNS.findIndex((c) => c.id === task.column) + 1];
+  if (next) {
+    move.textContent = next.title;
+    move.title = `Pasar a ${next.title}`;
+    move.addEventListener("click", (e) => {
+      e.stopPropagation();
+      store.update(task.id, { column: next.id, order: Date.now() }).catch(showError);
+    });
+  } else {
+    move.hidden = true;
+  }
+
+  card.addEventListener("click", () => openModal(task.id));
+  card.addEventListener("keydown", (e) => { if (e.key === "Enter") openModal(task.id); });
+  card.addEventListener("dragstart", (e) => {
+    card.classList.add("is-dragging");
+    e.dataTransfer.effectAllowed = "move";
+    e.dataTransfer.setData("text/plain", task.id);
+  });
+  card.addEventListener("dragend", () => {
+    card.classList.remove("is-dragging");
+    commitOrderFromDOM();
+  });
+
+  return card;
+}
+
+/* =========================================================
+   5. DRAG & DROP
+   ========================================================= */
+function bindDropzone(list) {
+  list.addEventListener("dragover", (e) => {
+    e.preventDefault();
+    list.classList.add("is-over");
+    const dragging = $(".card.is-dragging");
+    if (!dragging) return;
+    const after = cardAfterPointer(list, e.clientY);
+    after ? list.insertBefore(dragging, after) : list.append(dragging);
+  });
+  list.addEventListener("dragleave", (e) => {
+    if (!list.contains(e.relatedTarget)) list.classList.remove("is-over");
+  });
+  list.addEventListener("drop", (e) => {
+    e.preventDefault();
+    list.classList.remove("is-over");
+  });
+}
+
+function cardAfterPointer(list, y) {
+  const cards = [...list.querySelectorAll(".card:not(.is-dragging)")];
+  return cards.find((c) => {
+    const r = c.getBoundingClientRect();
+    return y < r.top + r.height / 2;
+  });
+}
+
+/* Lee el orden visible y guarda solo las tarjetas que cambiaron */
+async function commitOrderFromDOM() {
+  const changes = [];
+  board.querySelectorAll(".column").forEach((colEl) => {
+    colEl.querySelectorAll(".card").forEach((cardEl, i) => {
+      const task = tasks.find((t) => t.id === cardEl.dataset.id);
+      const column = colEl.dataset.column;
+      const order = i + 1;
+      if (task && (task.column !== column || task.order !== order)) {
+        changes.push([task.id, { column, order }]);
+      }
+    });
+  });
+  if (!changes.length) return;
+  try {
+    for (const [id, patch] of changes) await store.update(id, patch);
+  } catch (e) {
+    showError(e);
+    render();
+  }
+}
+
+/* =========================================================
+   6. MODAL (crear / editar / eliminar)
+   ========================================================= */
+let editingId = null;
+
+function fillSelects() {
+  fields.priority.replaceChildren(...Object.entries(PRIORITIES).map(([v, l]) => new Option(l, v)));
+  fields.column.replaceChildren(...COLUMNS.map((c) => new Option(c.title, c.id)));
+}
+
+function openModal(id, columnId = COLUMNS[0].id) {
+  editingId = id;
+  const task = id
+    ? tasks.find((t) => t.id === id)
+    : { title: "", desc: "", requester: "", contact: "", priority: "media", tag: "", due: "", column: columnId };
+
+  $("#modal-title").textContent = id ? "Editar tarea" : "Nueva tarea";
+  for (const f of FIELDS) fields[f].value = task[f];
+  resetDelete();
+  $("#btn-delete").hidden = !id;
+
+  modal.showModal();
+  fields.title.focus();
+}
+
+form.addEventListener("submit", async (e) => {
+  e.preventDefault();
+  const data = {};
+  for (const f of FIELDS) data[f] = fields[f].value.trim();
+  if (!data.title) return;
+
+  const id = editingId;
+  modal.close();
+  try {
+    if (id) {
+      const prev = tasks.find((t) => t.id === id);
+      if (prev && prev.column !== data.column) data.order = Date.now();
+      await store.update(id, data);
+    } else {
+      await store.create(data);
+    }
+  } catch (err) {
+    showError(err);
+  }
+});
+
+/* Eliminar en dos pasos (la página no puede usar confirm()) */
+const btnDelete = $("#btn-delete");
+function resetDelete() {
+  btnDelete.textContent = "Eliminar";
+  btnDelete.classList.remove("is-confirming");
+}
+btnDelete.addEventListener("click", async () => {
+  if (!btnDelete.classList.contains("is-confirming")) {
+    btnDelete.textContent = "Sí, eliminar";
+    btnDelete.classList.add("is-confirming");
+    return;
+  }
+  const id = editingId;
+  modal.close();
+  try { await store.remove(id); } catch (err) { showError(err); }
+});
+
+$("#btn-cancel").addEventListener("click", () => modal.close());
+modal.addEventListener("click", (e) => { if (e.target === modal) modal.close(); });
+
+/* =========================================================
+   7. PEDIDOS A CLAUDE (lenguaje natural → tarjetas)
+   La función "pedido" de Supabase llama a la API de Anthropic
+   y escribe en la base con tu sesión. La pantalla se actualiza
+   sola por la suscripción en tiempo real.
+   ========================================================= */
+const ask = $("#ask");
+const askInput = $("#ask-input");
+const askReply = $("#ask-reply");
+
+ask.addEventListener("submit", async (e) => {
+  e.preventDefault();
+  const request = askInput.value.trim();
+  if (!request || ask.classList.contains("is-busy")) return;
+
+  ask.classList.add("is-busy");
+  askReply.classList.remove("is-error");
+  askReply.textContent = "Pensando…";
+
+  const now = new Date();
+  const { data, error } = await sb.functions.invoke("pedido", {
+    body: {
+      request,
+      today: todayISO(),
+      todayLong: now.toLocaleDateString("es-AR", { weekday: "long", day: "numeric", month: "long", year: "numeric" }),
+    },
+  });
+  ask.classList.remove("is-busy");
+
+  if (error || !data?.ok) {
+    askReply.classList.add("is-error");
+    askReply.textContent = data?.error || "No se pudo completar el pedido. Probá de nuevo.";
+    return;
+  }
+  for (const id of data.created || []) justAdded.add(id);
+  askReply.textContent = data.reply;
+  askInput.value = "";
+  autosize();
+  await fetchTasks();
+});
+
+/* Enter envía; Shift+Enter hace salto de línea */
+askInput.addEventListener("keydown", (e) => {
+  if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); ask.requestSubmit(); }
+});
+function autosize() {
+  askInput.style.height = "auto";
+  askInput.style.height = askInput.scrollHeight + 2 + "px";
+}
+askInput.addEventListener("input", autosize);
+
+/* =========================================================
+   8. ACCIONES DEL HEADER (tema, búsqueda, exportar, importar)
+   ========================================================= */
+function showError(err) {
+  console.error(err);
+  setStatus("No se pudo guardar el cambio");
+  setTimeout(() => setStatus(""), 5000);
+}
+
+function applyTheme(theme) {
+  if (theme) document.documentElement.dataset.theme = theme;
+  else delete document.documentElement.dataset.theme;
+}
+
+function storedTheme() {
+  try { return localStorage.getItem(THEME_KEY); } catch { return null; }
+}
+
+$("#btn-theme").addEventListener("click", () => {
+  const current = document.documentElement.dataset.theme
+    || (matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light");
+  const next = current === "dark" ? "light" : "dark";
+  applyTheme(next);
+  try { localStorage.setItem(THEME_KEY, next); } catch { /* ignorar */ }
+});
+
+$("#btn-new").addEventListener("click", () => openModal(null));
+$("#search").addEventListener("input", render);
+
+$("#btn-export").addEventListener("click", () => {
+  const a = document.createElement("a");
+  a.href = URL.createObjectURL(new Blob([JSON.stringify(tasks, null, 2)], { type: "application/json" }));
+  a.download = `tareas-${todayISO()}.json`;
+  a.click();
+  URL.revokeObjectURL(a.href);
+});
+
+$("#btn-logout").addEventListener("click", () => sb.auth.signOut());
+
+$("#input-import").addEventListener("change", async (e) => {
+  const file = e.target.files[0];
+  e.target.value = "";
+  if (!file) return;
+  try {
+    const list = JSON.parse(await file.text());
+    const items = Array.isArray(list) ? list : list?.tasks;
+    if (!Array.isArray(items)) throw new Error("formato");
+    for (const raw of items) await store.create(pick({ ...raw }));
+    setStatus(`Se importaron ${items.length} tareas`);
+  } catch {
+    setStatus("Ese archivo no es un respaldo del tablero");
+  }
+  setTimeout(() => setStatus(""), 5000);
+});
+
+/* Atajo: tecla "n" = nueva tarea (si no estás escribiendo) */
+document.addEventListener("keydown", (e) => {
+  const typing = ["INPUT", "TEXTAREA", "SELECT"].includes(document.activeElement.tagName);
+  if (e.key === "n" && !typing && !modal.open) { e.preventDefault(); openModal(null); }
+});
+
+/* =========================================================
+   9. INICIO
+   ========================================================= */
+applyTheme(storedTheme());
+fillSelects();
+sb.auth.getSession().then(({ data }) => showApp(data.session));
+
+</script>
+</body>
+</html>
