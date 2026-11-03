@@ -242,8 +242,11 @@ select.input option { background: var(--surface); color: var(--text); }
    Mobile first (iPhone SE: 375 × 667): una sola fila arriba,
    la barra de pedidos fija abajo, al alcance del pulgar.
    ========================================================= */
+/* Sticky + fondo sólido: iOS 26 no dibuja su desenfoque de borde
+   ("scroll edge effect") cuando una barra fija/sticky opaca cubre el borde */
 .topbar {
-  position: relative;
+  position: sticky;
+  top: 0;
   z-index: 20;
   display: flex;
   flex-wrap: wrap;
