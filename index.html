@@ -346,6 +346,17 @@ body::before {
 .ask__reply.is-error { color: var(--danger); }
 .ask.is-busy .ask__send { opacity: 0.6; pointer-events: none; }
 
+/* Micrófono: mientras escucha, se pinta con el color de alta prioridad */
+.ask__mic.is-listening {
+  border-color: var(--danger);
+  color: var(--primary-text);
+  background: var(--danger);
+  animation: mic-pulse 1.2s ease-in-out infinite;
+}
+@keyframes mic-pulse {
+  50% { box-shadow: 0 0 0 6px color-mix(in srgb, var(--danger) 25%, transparent); }
+}
+
 /* Login: una T-card grande */
 .login {
   min-height: 100%;
@@ -744,6 +755,9 @@ body::before {
   <label class="ask__label" for="ask-input">Pedile a Claude</label>
   <div class="ask__row">
     <textarea class="input ask__input" id="ask-input" rows="1" placeholder="Elvio pidió revisar la impresora de guardia, alta, para el viernes. Hablar con Montoto."></textarea>
+    <button class="btn btn--ghost btn--icon ask__mic" id="ask-mic" type="button" title="Dictar" aria-label="Dictar" aria-pressed="false" hidden>
+      <svg viewBox="0 0 24 24" width="20" height="20" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="3" width="6" height="11" rx="3"/><path d="M5 11a7 7 0 0 0 14 0M12 18v3"/></svg>
+    </button>
     <button class="btn btn--primary ask__send" id="ask-send" type="submit">Enviar</button>
   </div>
   <p class="ask__reply" id="ask-reply" aria-live="polite"></p>
@@ -1343,6 +1357,71 @@ ask.addEventListener("submit", async (e) => {
   autosize();
   await fetchTasks();
 });
+
+/* Dictado por voz (Web Speech API del navegador).
+   Tocás el micrófono, hablás, y al terminar el pedido se envía solo.
+   Si el navegador no lo soporta, el botón no aparece y queda el
+   dictado del teclado del celular. */
+const micBtn = $("#ask-mic");
+const Recognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+let recognizer = null;
+
+function setListening(on) {
+  micBtn.classList.toggle("is-listening", on);
+  micBtn.setAttribute("aria-pressed", String(on));
+  micBtn.title = on ? "Dejar de dictar" : "Dictar";
+}
+
+if (Recognition) {
+  micBtn.hidden = false;
+  micBtn.addEventListener("click", () => {
+    if (recognizer) { recognizer.stop(); return; }
+
+    recognizer = new Recognition();
+    recognizer.lang = "es-AR";
+    recognizer.interimResults = true;
+    recognizer.continuous = false;
+
+    const before = askInput.value.trim();
+    let finalText = "";
+
+    recognizer.onstart = () => {
+      setListening(true);
+      askReply.classList.remove("is-error");
+      askReply.textContent = "Escuchando… hablá y cuando termines hacé una pausa.";
+    };
+    recognizer.onresult = (e) => {
+      let interim = "";
+      finalText = "";
+      for (const r of e.results) {
+        if (r.isFinal) finalText += r[0].transcript;
+        else interim += r[0].transcript;
+      }
+      askInput.value = [before, finalText || interim].filter(Boolean).join(" ");
+      autosize();
+    };
+    recognizer.onerror = (e) => {
+      askReply.classList.add("is-error");
+      askReply.textContent = e.error === "not-allowed" || e.error === "service-not-allowed"
+        ? "El navegador no tiene permiso para usar el micrófono. Habilitalo en los ajustes del sitio."
+        : e.error === "no-speech"
+          ? "No se escuchó nada. Tocá el micrófono y probá de nuevo."
+          : "No se pudo dictar. Probá de nuevo o usá el micrófono del teclado.";
+    };
+    recognizer.onend = () => {
+      setListening(false);
+      recognizer = null;
+      if (finalText.trim()) {
+        askReply.textContent = "";
+        ask.requestSubmit();
+      } else if (!askReply.classList.contains("is-error")) {
+        askReply.textContent = "";
+      }
+    };
+
+    try { recognizer.start(); } catch { setListening(false); recognizer = null; }
+  });
+}
 
 /* Enter envía; Shift+Enter hace salto de línea */
 askInput.addEventListener("keydown", (e) => {
