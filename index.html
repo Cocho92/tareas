@@ -53,6 +53,9 @@
   /* Layout */
   --column-width: 86vw;   /* mobile; en desktop pasa a 300px (sección 8) */
   --card-inset: 14px;     /* cuánto más angosto es el cuerpo de la T */
+  --tap: 44px;            /* área táctil mínima (Apple HIG) */
+  --kb: 0px;              /* alto del teclado en pantalla; lo actualiza app.js */
+  --vvh: 100dvh;          /* alto visible real; lo actualiza app.js */
   --transition: 140ms ease;
 
   /* Esmaltes de las placas de cada columna (los usa COLUMNS en app.js) */
@@ -184,7 +187,7 @@ h1, h2, h3, p { margin: 0; }
   align-items: center;
   justify-content: center;
   gap: var(--space-2);
-  height: 40px; /* área táctil cómoda */
+  height: var(--tap);
   padding: 0 var(--space-4);
   border: 1px solid transparent;
   border-radius: var(--radius-control);
@@ -207,7 +210,12 @@ h1, h2, h3, p { margin: 0; }
 .btn--danger { color: var(--danger); padding-left: 0; }
 .btn--danger:hover { text-decoration: underline; }
 
-.btn--icon { width: 40px; padding: 0; font-size: var(--fs-lg); line-height: 1; }
+.btn--icon { width: var(--tap); padding: 0; font-size: var(--fs-lg); line-height: 1; }
+.btn svg { flex-shrink: 0; }
+.visually-hidden {
+  position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px;
+  overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; border: 0;
+}
 
 .input {
   width: 100%;
@@ -230,70 +238,106 @@ select.input option { background: var(--surface); color: var(--text); }
 .spacer { flex: 1; }
 
 /* =========================================================
-   4. TOPBAR (mobile first: base = celular)
+   4. TOPBAR, BÚSQUEDA, MENÚ Y BARRA DE PEDIDOS
+   Mobile first (iPhone SE: 375 × 667): una sola fila arriba,
+   la barra de pedidos fija abajo, al alcance del pulgar.
    ========================================================= */
 .topbar {
-  position: sticky;
-  top: 0;
-  z-index: 10;
+  position: relative;
+  z-index: 20;
   display: flex;
   flex-wrap: wrap;
   align-items: center;
-  gap: var(--space-3);
-  padding-block: var(--space-3);
-  padding-left: max(16px, env(safe-area-inset-left, 0px));
-  padding-right: max(16px, env(safe-area-inset-right, 0px));
+  gap: var(--space-2) var(--space-3);
+  padding-block: var(--space-2);
+  padding-top: max(var(--space-2), env(safe-area-inset-top, 0px));
+  padding-left: max(12px, env(safe-area-inset-left, 0px));
+  padding-right: max(12px, env(safe-area-inset-right, 0px));
   border-bottom: 1px solid var(--border);
   background: var(--bg);
 }
-.topbar { top: env(safe-area-inset-top, 0px); }
-body::before {
-  content: "";
-  position: fixed;
-  inset: 0 0 auto;
-  height: env(safe-area-inset-top, 0px);
-  z-index: 10;
-  background: var(--bg);
-}
 
-.topbar__brand { display: flex; align-items: center; gap: var(--space-3); flex: 1; }
+.topbar__brand { display: flex; align-items: center; gap: var(--space-2); flex: 1; min-width: 0; }
 
 /* Logo: una T-card dibujada con fondos */
 .topbar__logo {
-  width: 22px;
-  height: 28px;
+  flex-shrink: 0;
+  width: 20px;
+  height: 25px;
   background:
-    linear-gradient(var(--stock-media), var(--stock-media)) top / 100% 9px no-repeat,
+    linear-gradient(var(--stock-media), var(--stock-media)) top / 100% 8px no-repeat,
     linear-gradient(var(--stock-media), var(--stock-media)) center / 64% 100% no-repeat;
   filter: drop-shadow(0 0 0.5px var(--card-ink)) drop-shadow(0 1px 0 var(--card-edge));
 }
 
 .topbar__title {
-  font-size: var(--fs-xl);
+  font-size: var(--fs-lg);
   font-weight: 760;
   font-stretch: var(--wdth-condensed);
   letter-spacing: -0.01em;
   line-height: 1;
+  white-space: nowrap;
 }
 
-.topbar__actions {
+/* Estado de sincronización junto al título */
+.topbar__status {
+  overflow: hidden;
+  font-size: var(--fs-xs);
+  font-weight: 600;
+  color: var(--text-muted);
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+.topbar__status:empty { display: none; }
+
+.topbar__actions { display: flex; align-items: center; gap: var(--space-2); }
+.topbar__new-label { display: none; }
+#btn-search[aria-expanded="true"] { border-color: var(--focus); color: var(--focus); }
+
+/* Búsqueda desplegable: fila completa debajo del título */
+.searchbar { flex: 1 1 100%; }
+
+/* Menú de opciones */
+.menu-wrap { position: relative; }
+.menu {
+  position: absolute;
+  top: calc(100% + 6px);
+  right: 0;
+  z-index: 30;
   display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: var(--space-2);
-  width: 100%;
+  flex-direction: column;
+  min-width: 200px;
+  padding: var(--space-1);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-rack);
+  background: var(--plate);
+  box-shadow: 0 8px 24px rgb(0 0 0 / 0.18);
 }
-.topbar__search { flex: 1 1 100%; order: -1; }
-.topbar__actions .btn--ghost:not(.btn--icon) { padding: 0 var(--space-3); }
-#btn-new { flex: 1; padding: 0 var(--space-3); }
+.menu__item {
+  display: flex;
+  align-items: center;
+  min-height: var(--tap);
+  padding: 0 var(--space-3);
+  border: 0;
+  border-radius: var(--radius-control);
+  font: inherit;
+  font-size: var(--fs-md);
+  text-align: left;
+  color: var(--text);
+  background: transparent;
+  cursor: pointer;
+}
+.menu__item:hover, .menu__item:focus-visible { background: var(--surface); }
+#btn-logout { color: var(--danger); }
 
-/* Atajos a columnas (solo mobile) */
+/* Atajos a columnas */
 .colnav {
   display: flex;
+  flex-shrink: 0;
   gap: var(--space-2);
-  padding-block: var(--space-3) 0;
-  padding-left: max(16px, env(safe-area-inset-left, 0px));
-  padding-right: max(16px, env(safe-area-inset-right, 0px));
+  padding-block: var(--space-2) 0;
+  padding-left: max(12px, env(safe-area-inset-left, 0px));
+  padding-right: max(12px, env(safe-area-inset-right, 0px));
   overflow-x: auto;
   scrollbar-width: none;
 }
@@ -301,7 +345,7 @@ body::before {
 
 .colnav__chip {
   flex: 0 0 auto;
-  height: 34px;
+  height: 36px;
   padding: 0 var(--space-3) 0 var(--space-2);
   border: 1px solid var(--border);
   border-left: 5px solid var(--column-accent);
@@ -315,35 +359,58 @@ body::before {
   cursor: pointer;
 }
 
-/* Estado de sincronización junto al título */
-.topbar__status {
-  font-size: var(--fs-xs);
-  font-weight: 600;
-  color: var(--text-muted);
-}
-.topbar__status:empty { display: none; }
-
-/* Pedidos a Claude */
+/* Barra de pedidos a Claude: fija abajo; con teclado, sube con él */
 .ask {
+  position: fixed;
+  left: 0;
+  right: 0;
+  bottom: var(--kb);
+  z-index: 25;
   display: flex;
   flex-direction: column;
   gap: var(--space-2);
-  padding-block: var(--space-3);
-  padding-left: max(16px, env(safe-area-inset-left, 0px));
-  padding-right: max(16px, env(safe-area-inset-right, 0px));
-  border-bottom: 1px solid var(--border);
+  padding-block: var(--space-2);
+  padding-left: max(12px, env(safe-area-inset-left, 0px));
+  padding-right: max(12px, env(safe-area-inset-right, 0px));
+  border-top: 1px solid var(--border);
   background: var(--plate);
 }
-.ask__label {
-  font-size: var(--fs-sm);
-  font-weight: 680;
-  font-stretch: var(--wdth-condensed);
-}
+/* Sin teclado, respeta la franja del indicador de inicio */
+.ask:not(.has-kb) { padding-bottom: max(var(--space-2), env(safe-area-inset-bottom, 0px)); }
+
 .ask__row { display: flex; gap: var(--space-2); align-items: flex-end; }
-.ask__input { flex: 1; min-width: 0; resize: none; min-height: 64px; max-height: 140px; }
-.ask__reply { font-size: var(--fs-sm); color: var(--text-muted); max-width: 70ch; }
-.ask__reply:empty { display: none; }
+.ask textarea.ask__input { resize: none; }
+.ask__input {
+  flex: 1;
+  min-width: 0;
+  min-height: var(--tap);
+  max-height: 96px;      /* ~4 líneas; después scrollea adentro */
+  padding-block: 10px;
+  resize: none;
+  line-height: 1.35;
+}
+.ask__reply-row {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--space-2);
+  padding: var(--space-2) var(--space-2) var(--space-2) var(--space-3);
+  border-radius: var(--radius-control);
+  background: var(--surface);
+}
+.ask__reply { flex: 1; font-size: var(--fs-sm); line-height: 1.4; color: var(--text); }
 .ask__reply.is-error { color: var(--danger); }
+.ask__close {
+  display: grid;
+  place-items: center;
+  width: 32px;
+  height: 32px;
+  margin: -6px -4px -6px 0;
+  border: 0;
+  border-radius: var(--radius-control);
+  color: var(--text-muted);
+  background: transparent;
+  cursor: pointer;
+}
 .ask.is-busy .ask__send { opacity: 0.6; pointer-events: none; }
 
 /* Micrófono: mientras escucha, se pinta con el color de alta prioridad */
@@ -392,7 +459,14 @@ body::before {
 .login__msg:empty { display: none; }
 .btn--link { height: auto; padding: 0; align-self: center; color: var(--card-ink); text-decoration: underline; font-weight: 500; }
 
-.app { display: flex; flex-direction: column; min-height: 100%; }
+/* La app ocupa exactamente la pantalla: el tablero scrollea por dentro
+   y la página no salta cuando aparece el teclado */
+html:has(.app:not([hidden])), html:has(.app:not([hidden])) body { overflow: hidden; overscroll-behavior: none; }
+.app {
+  display: flex;
+  flex-direction: column;
+  height: 100dvh;
+}
 
 /* =========================================================
    5. TABLERO Y COLUMNAS (racks)
@@ -401,13 +475,16 @@ body::before {
   flex: 1;
   display: flex;
   align-items: flex-start;
+  min-height: 0;
   gap: var(--space-3);
-  padding-block: var(--space-4);
-  padding-left: max(16px, env(safe-area-inset-left, 0px));
-  padding-right: max(16px, env(safe-area-inset-right, 0px));
+  padding-top: var(--space-3);
+  padding-bottom: calc(var(--ask-h, 64px) + var(--space-3));
+  padding-left: max(12px, env(safe-area-inset-left, 0px));
+  padding-right: max(12px, env(safe-area-inset-right, 0px));
   overflow-x: auto;
+  overflow-y: hidden;
   scroll-snap-type: x mandatory;
-  scroll-padding: var(--space-4);
+  scroll-padding: 12px;
 }
 
 .column {
@@ -567,7 +644,7 @@ body::before {
 /* Pasar a la siguiente columna (táctil) */
 .card__move {
   align-self: flex-start;
-  height: 32px;
+  height: 36px;
   padding: 0 var(--space-3);
   border: 1px solid var(--card-edge);
   border-radius: var(--radius-control);
@@ -608,46 +685,75 @@ body::before {
 .column[data-column="done"] .card__title { text-decoration: line-through; text-decoration-thickness: 1px; }
 
 /* =========================================================
-   7. MODAL
+   7. MODAL — en el celular ocupa todo el alto VISIBLE (sin el
+   teclado) y deja Guardar/Cancelar arriba, siempre a la vista
    ========================================================= */
 .modal {
-  /* mobile: hoja inferior */
+  position: fixed;
+  inset: 0 0 auto 0;
   width: 100%;
   max-width: 100%;
-  margin: auto 0 0;
+  height: var(--vvh);
+  max-height: none;
+  margin: 0;
   padding: 0;
-  border: 1px solid var(--border);
-  border-radius: var(--radius-rack) var(--radius-rack) 0 0;
+  border: 0;
   color: var(--text);
   background: var(--plate);
 }
 .modal::backdrop { background: rgb(20 23 27 / 0.55); }
-.btn--danger.is-confirming { background: var(--danger); color: var(--primary-text); padding: 0 var(--space-4); }
 .modal[open] { animation: sheet-in 200ms ease-out; }
 
-.modal__form {
-  display: flex;
-  flex-direction: column;
-  gap: var(--space-4);
-  padding: var(--space-5) var(--space-4);
-  padding-bottom: max(var(--space-5), env(safe-area-inset-bottom));
-}
+.modal__form { display: flex; flex-direction: column; height: 100%; }
 
+.modal__head {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  padding-block: var(--space-2);
+  padding-top: max(var(--space-2), env(safe-area-inset-top, 0px));
+  padding-left: max(12px, env(safe-area-inset-left, 0px));
+  padding-right: max(12px, env(safe-area-inset-right, 0px));
+  border-bottom: 1px solid var(--border);
+  background: var(--plate);
+}
 .modal__title {
-  font-size: var(--fs-xl);
+  flex: 1;
+  font-size: var(--fs-lg);
   font-weight: 760;
   font-stretch: var(--wdth-condensed);
   line-height: 1.1;
+  text-align: center;
+}
+.modal__cancel { padding: 0 var(--space-3); }
+
+.modal__body {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  padding-block: var(--space-3) var(--space-5);
+  padding-bottom: max(var(--space-5), env(safe-area-inset-bottom, 0px));
+  padding-left: max(12px, env(safe-area-inset-left, 0px));
+  padding-right: max(12px, env(safe-area-inset-right, 0px));
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  scroll-padding-block: var(--space-4);
 }
 
-.modal__actions { display: flex; align-items: center; gap: var(--space-2); margin-top: var(--space-2); }
+.modal__delete { align-self: flex-start; margin-top: var(--space-2); padding-left: 0; }
+.btn--danger.is-confirming { background: var(--danger); color: var(--primary-text); padding: 0 var(--space-4); }
 
-.field { display: flex; flex-direction: column; gap: var(--space-1); flex: 1; }
+.field { display: flex; flex-direction: column; gap: var(--space-1); min-width: 0; }
 .field__label { font-size: var(--fs-sm); font-weight: 600; color: var(--text-muted); }
-.field-row { display: flex; flex-direction: column; gap: var(--space-4); }
+/* Campos cortos de a dos, incluso en el SE: ahorra media pantalla */
+.field-row { display: grid; grid-template-columns: 1fr 1fr; gap: var(--space-3); }
+.field-row .input { min-width: 0; }
+input[type="date"].input { min-height: var(--tap); -webkit-appearance: none; appearance: none; }
 
 @keyframes sheet-in {
-  from { transform: translateY(24px); opacity: 0; }
+  from { transform: translateY(16px); opacity: 0; }
   to   { transform: none; opacity: 1; }
 }
 
@@ -659,27 +765,36 @@ body::before {
 @media (min-width: 768px) {
   :root { --column-width: 300px; }
 
-  .topbar { padding-block: var(--space-4); justify-content: space-between; }
-  .topbar__brand { flex: 0 1 auto; }
-  .topbar__actions { width: auto; }
-  .topbar__search { flex: 0 0 220px; order: 0; }
-  #btn-new { flex: 0 0 auto; padding: 0 var(--space-4); }
-  .topbar__actions .btn--ghost:not(.btn--icon) { padding: 0 var(--space-4); }
+  :root { --tap: 40px; }
+  .topbar { padding-block: var(--space-3); padding-left: max(24px, env(safe-area-inset-left, 0px)); padding-right: max(24px, env(safe-area-inset-right, 0px)); }
+  .topbar__title { font-size: var(--fs-xl); }
+  .topbar__new { width: auto; padding: 0 var(--space-4); }
+  .topbar__new-label { display: inline; }
+  .searchbar { flex: 0 0 280px; order: 0; }
   .input { font-size: var(--fs-sm); }
 
   .colnav { display: none; }
-  .ask__input { min-height: 40px; }
 
-  .board { gap: var(--space-4); padding-block: var(--space-5); scroll-snap-type: none; }
+  /* En pantallas grandes la barra de pedidos va arriba, bajo el título */
+  .ask { position: static; order: 0; padding-left: max(24px, env(safe-area-inset-left, 0px)); padding-right: max(24px, env(safe-area-inset-right, 0px)); border-top: 0; border-bottom: 1px solid var(--border); }
+  .ask:not(.has-kb) { padding-bottom: var(--space-2); }
+  .app > .ask { order: 1; }
+  .app > .topbar { order: 0; }
+  .app > .board { order: 2; }
 
-  .field-row { flex-direction: row; gap: var(--space-3); }
+  .board { gap: var(--space-4); padding: var(--space-5) max(24px, env(safe-area-inset-right, 0px)) var(--space-5) max(24px, env(safe-area-inset-left, 0px)); scroll-snap-type: none; overflow-y: auto; }
 
   .modal {
+    inset: 0;
     width: min(520px, calc(100vw - 32px));
+    height: auto;
+    max-height: calc(100dvh - 48px);
     margin: auto;
+    border: 1px solid var(--border);
     border-radius: var(--radius-rack);
   }
-  .modal__form { padding: var(--space-5); }
+  .modal__head { padding: var(--space-3) var(--space-4); }
+  .modal__body { padding: var(--space-4); }
 
   /* En desktop se arrastra; el botón para pasar de columna aparece al apuntar */
   .card__move { display: none; }
@@ -727,7 +842,8 @@ body::before {
 <div class="app" id="app" hidden>
 
 <!-- =====================================================
-     HEADER — título, búsqueda y acciones globales
+     HEADER — una sola fila en el celular; búsqueda y menú
+     se despliegan solo cuando se tocan
      ===================================================== -->
 <header class="topbar">
   <div class="topbar__brand">
@@ -737,31 +853,24 @@ body::before {
   </div>
 
   <div class="topbar__actions">
-    <input class="input topbar__search" id="search" type="search" placeholder="Buscar tareas, personas, etiquetas" autocomplete="off">
-    <button class="btn btn--ghost btn--icon" id="btn-theme" type="button" title="Cambiar tema" aria-label="Cambiar tema">☾</button>
-    <button class="btn btn--ghost" id="btn-export" type="button">Exportar</button>
-    <label class="btn btn--ghost" for="input-import">Importar</label>
-    <input type="file" id="input-import" accept="application/json" hidden>
-    <button class="btn btn--primary" id="btn-new" type="button">+ Nueva tarea</button>
-    <button class="btn btn--ghost" id="btn-logout" type="button">Salir</button>
+    <button class="btn btn--ghost btn--icon" id="btn-search" type="button" aria-label="Buscar" aria-expanded="false" aria-controls="searchbar"><svg viewBox="0 0 24 24" width="20" height="20" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg></button>
+    <button class="btn btn--primary btn--icon topbar__new" id="btn-new" type="button" aria-label="Nueva tarea"><svg viewBox="0 0 24 24" width="20" height="20" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 5v14M5 12h14"/></svg><span class="topbar__new-label">Nueva tarea</span></button>
+    <div class="menu-wrap">
+      <button class="btn btn--ghost btn--icon" id="btn-menu" type="button" aria-label="Más opciones" aria-expanded="false" aria-controls="menu"><svg viewBox="0 0 24 24" width="20" height="20" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="5" cy="12" r="1.6" fill="currentColor"/><circle cx="12" cy="12" r="1.6" fill="currentColor"/><circle cx="19" cy="12" r="1.6" fill="currentColor"/></svg></button>
+      <div class="menu" id="menu" role="menu" hidden>
+        <button class="menu__item" id="btn-theme" type="button" role="menuitem">Cambiar tema</button>
+        <button class="menu__item" id="btn-export" type="button" role="menuitem">Exportar respaldo</button>
+        <label class="menu__item" for="input-import" role="menuitem">Importar respaldo</label>
+        <button class="menu__item" id="btn-logout" type="button" role="menuitem">Cerrar sesión</button>
+      </div>
+      <input type="file" id="input-import" accept="application/json" hidden>
+    </div>
+  </div>
+
+  <div class="searchbar" id="searchbar" hidden>
+    <input class="input" id="search" type="search" placeholder="Buscar tareas, personas, etiquetas" autocomplete="off" enterkeyhint="search">
   </div>
 </header>
-
-<!-- =====================================================
-     PEDIDOS A CLAUDE — los procesa la función "pedido"
-     de Supabase, que llama a la API de Anthropic
-     ===================================================== -->
-<form class="ask" id="ask">
-  <label class="ask__label" for="ask-input">Pedile a Claude</label>
-  <div class="ask__row">
-    <textarea class="input ask__input" id="ask-input" rows="1" placeholder="Elvio pidió revisar la impresora de guardia, alta, para el viernes. Hablar con Montoto."></textarea>
-    <button class="btn btn--ghost btn--icon ask__mic" id="ask-mic" type="button" title="Dictar" aria-label="Dictar" aria-pressed="false" hidden>
-      <svg viewBox="0 0 24 24" width="20" height="20" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="3" width="6" height="11" rx="3"/><path d="M5 11a7 7 0 0 0 14 0M12 18v3"/></svg>
-    </button>
-    <button class="btn btn--primary ask__send" id="ask-send" type="submit">Enviar</button>
-  </div>
-  <p class="ask__reply" id="ask-reply" aria-live="polite"></p>
-</form>
 
 <!-- Atajos a columnas (visibles en mobile) -->
 <nav class="colnav" id="colnav" aria-label="Ir a columna"></nav>
@@ -770,6 +879,25 @@ body::before {
      TABLERO — las columnas se generan desde COLUMNS (app.js)
      ===================================================== -->
 <main class="board" id="board" aria-label="Tablero de tareas"></main>
+
+<!-- =====================================================
+     PEDIDOS A CLAUDE — barra fija abajo (al alcance del pulgar).
+     Con el teclado abierto se acomoda encima de él (app.js §7b).
+     ===================================================== -->
+<form class="ask" id="ask">
+  <div class="ask__reply-row" id="ask-reply-row" hidden>
+    <p class="ask__reply" id="ask-reply" aria-live="polite"></p>
+    <button class="ask__close" id="ask-close" type="button" aria-label="Cerrar mensaje"><svg viewBox="0 0 24 24" width="20" height="20" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 6l12 12M18 6 6 18"/></svg></button>
+  </div>
+  <div class="ask__row">
+    <button class="btn btn--ghost btn--icon ask__mic" id="ask-mic" type="button" title="Dictar" aria-label="Dictar" aria-pressed="false" hidden>
+      <svg viewBox="0 0 24 24" width="20" height="20" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="3" width="6" height="11" rx="3"/><path d="M5 11a7 7 0 0 0 14 0M12 18v3"/></svg>
+    </button>
+    <label class="visually-hidden" for="ask-input">Pedile a Claude</label>
+    <textarea class="input ask__input" id="ask-input" rows="1" enterkeyhint="send" placeholder="Pedile algo a Claude…"></textarea>
+    <button class="btn btn--primary btn--icon ask__send" id="ask-send" type="submit" aria-label="Enviar"><svg viewBox="0 0 24 24" width="20" height="20" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14M13 6l6 6-6 6"/></svg></button>
+  </div>
+</form>
 
 <!-- =====================================================
      TEMPLATES — markup de columnas y tarjetas
@@ -813,56 +941,57 @@ body::before {
      ===================================================== -->
 <dialog class="modal" id="modal">
   <form class="modal__form" id="task-form">
-    <h2 class="modal__title" id="modal-title">Nueva tarea</h2>
-
-    <label class="field">
-      <span class="field__label">Título</span>
-      <input class="input" id="f-title" name="title" required maxlength="120">
-    </label>
-
-    <label class="field">
-      <span class="field__label">Descripción</span>
-      <textarea class="input" id="f-desc" name="desc" rows="3"></textarea>
-    </label>
-
-    <div class="field-row">
-      <label class="field">
-        <span class="field__label">Pidió</span>
-        <input class="input" id="f-requester" name="requester" maxlength="60" placeholder="ej: Elvio">
-      </label>
-      <label class="field">
-        <span class="field__label">Hablar con</span>
-        <input class="input" id="f-contact" name="contact" maxlength="60" placeholder="ej: Montoto">
-      </label>
-    </div>
-
-    <div class="field-row">
-      <label class="field">
-        <span class="field__label">Prioridad</span>
-        <select class="input" id="f-priority" name="priority"></select>
-      </label>
-      <label class="field">
-        <span class="field__label">Columna</span>
-        <select class="input" id="f-column" name="column"></select>
-      </label>
-    </div>
-
-    <div class="field-row">
-      <label class="field">
-        <span class="field__label">Etiqueta</span>
-        <input class="input" id="f-tag" name="tag" placeholder="ej: clínica" maxlength="30">
-      </label>
-      <label class="field">
-        <span class="field__label">Vence</span>
-        <input class="input" type="date" id="f-due" name="due">
-      </label>
-    </div>
-
-    <div class="modal__actions">
-      <button class="btn btn--danger" id="btn-delete" type="button">Eliminar</button>
-      <span class="spacer"></span>
-      <button class="btn btn--ghost" id="btn-cancel" type="button">Cancelar</button>
+    <header class="modal__head">
+      <button class="btn btn--ghost modal__cancel" id="btn-cancel" type="button">Cancelar</button>
+      <h2 class="modal__title" id="modal-title">Nueva tarea</h2>
       <button class="btn btn--primary" type="submit">Guardar</button>
+    </header>
+
+    <div class="modal__body">
+      <label class="field">
+        <span class="field__label">Título</span>
+        <input class="input" id="f-title" name="title" required maxlength="120" enterkeyhint="next" autocapitalize="sentences">
+      </label>
+
+      <label class="field">
+        <span class="field__label">Descripción</span>
+        <textarea class="input" id="f-desc" name="desc" rows="2"></textarea>
+      </label>
+
+      <div class="field-row">
+        <label class="field">
+          <span class="field__label">Pidió</span>
+          <input class="input" id="f-requester" name="requester" maxlength="60" placeholder="Elvio" autocapitalize="words">
+        </label>
+        <label class="field">
+          <span class="field__label">Hablar con</span>
+          <input class="input" id="f-contact" name="contact" maxlength="60" placeholder="Montoto" autocapitalize="words">
+        </label>
+      </div>
+
+      <div class="field-row">
+        <label class="field">
+          <span class="field__label">Prioridad</span>
+          <select class="input" id="f-priority" name="priority"></select>
+        </label>
+        <label class="field">
+          <span class="field__label">Columna</span>
+          <select class="input" id="f-column" name="column"></select>
+        </label>
+      </div>
+
+      <div class="field-row">
+        <label class="field">
+          <span class="field__label">Etiqueta</span>
+          <input class="input" id="f-tag" name="tag" placeholder="clínica" maxlength="30" autocapitalize="none">
+        </label>
+        <label class="field">
+          <span class="field__label">Vence</span>
+          <input class="input" type="date" id="f-due" name="due">
+        </label>
+      </div>
+
+      <button class="btn btn--danger modal__delete" id="btn-delete" type="button">Eliminar tarea</button>
     </div>
   </form>
 </dialog>
@@ -1273,7 +1402,10 @@ function openModal(id, columnId = COLUMNS[0].id) {
   $("#btn-delete").hidden = !id;
 
   modal.showModal();
-  fields.title.focus();
+  syncViewport();
+  $(".modal__body").scrollTop = 0;
+  // Solo abre el teclado al crear; al editar primero se ve la tarjeta
+  if (!id) fields.title.focus();
 }
 
 form.addEventListener("submit", async (e) => {
@@ -1300,7 +1432,7 @@ form.addEventListener("submit", async (e) => {
 /* Eliminar en dos pasos (la página no puede usar confirm()) */
 const btnDelete = $("#btn-delete");
 function resetDelete() {
-  btnDelete.textContent = "Eliminar";
+  btnDelete.textContent = "Eliminar tarea";
   btnDelete.classList.remove("is-confirming");
 }
 btnDelete.addEventListener("click", async () => {
@@ -1326,6 +1458,19 @@ modal.addEventListener("click", (e) => { if (e.target === modal) modal.close(); 
 const ask = $("#ask");
 const askInput = $("#ask-input");
 const askReply = $("#ask-reply");
+const askReplyRow = $("#ask-reply-row");
+let replyTimer = null;
+
+/* Mensaje sobre la barra: vacío = oculto; los de éxito se van solos */
+function setReply(text, { error = false, sticky = false } = {}) {
+  clearTimeout(replyTimer);
+  askReply.textContent = text;
+  askReply.classList.toggle("is-error", error);
+  askReplyRow.hidden = !text;
+  if (text && !error && !sticky) replyTimer = setTimeout(() => setReply(""), 8000);
+  measureAsk();
+}
+$("#ask-close").addEventListener("click", () => setReply(""));
 
 ask.addEventListener("submit", async (e) => {
   e.preventDefault();
@@ -1333,8 +1478,7 @@ ask.addEventListener("submit", async (e) => {
   if (!request || ask.classList.contains("is-busy")) return;
 
   ask.classList.add("is-busy");
-  askReply.classList.remove("is-error");
-  askReply.textContent = "Pensando…";
+  setReply("Pensando…", { sticky: true });
 
   const now = new Date();
   const { data, error } = await sb.functions.invoke("pedido", {
@@ -1347,14 +1491,14 @@ ask.addEventListener("submit", async (e) => {
   ask.classList.remove("is-busy");
 
   if (error || !data?.ok) {
-    askReply.classList.add("is-error");
-    askReply.textContent = data?.error || "No se pudo completar el pedido. Probá de nuevo.";
+    setReply(data?.error || "No se pudo completar el pedido. Probá de nuevo.", { error: true });
     return;
   }
   for (const id of data.created || []) justAdded.add(id);
-  askReply.textContent = data.reply;
+  setReply(data.reply);
   askInput.value = "";
   autosize();
+  askInput.blur();          // baja el teclado para que se vea la tarjeta nueva
   await fetchTasks();
 });
 
@@ -1387,8 +1531,7 @@ if (Recognition) {
 
     recognizer.onstart = () => {
       setListening(true);
-      askReply.classList.remove("is-error");
-      askReply.textContent = "Escuchando… hablá y cuando termines hacé una pausa.";
+      setReply("Escuchando… hablá y cuando termines hacé una pausa.", { sticky: true });
     };
     recognizer.onresult = (e) => {
       let interim = "";
@@ -1401,21 +1544,20 @@ if (Recognition) {
       autosize();
     };
     recognizer.onerror = (e) => {
-      askReply.classList.add("is-error");
-      askReply.textContent = e.error === "not-allowed" || e.error === "service-not-allowed"
+      setReply(e.error === "not-allowed" || e.error === "service-not-allowed"
         ? "El navegador no tiene permiso para usar el micrófono. Habilitalo en los ajustes del sitio."
         : e.error === "no-speech"
           ? "No se escuchó nada. Tocá el micrófono y probá de nuevo."
-          : "No se pudo dictar. Probá de nuevo o usá el micrófono del teclado.";
+          : "No se pudo dictar. Probá de nuevo o usá el micrófono del teclado.", { error: true });
     };
     recognizer.onend = () => {
       setListening(false);
       recognizer = null;
       if (finalText.trim()) {
-        askReply.textContent = "";
+        setReply("");
         ask.requestSubmit();
       } else if (!askReply.classList.contains("is-error")) {
-        askReply.textContent = "";
+        setReply("");
       }
     };
 
@@ -1429,8 +1571,59 @@ askInput.addEventListener("keydown", (e) => {
 });
 function autosize() {
   askInput.style.height = "auto";
-  askInput.style.height = askInput.scrollHeight + 2 + "px";
+  askInput.style.height = Math.min(askInput.scrollHeight + 2, 96) + "px";
+  measureAsk();
 }
+
+/* =========================================================
+   7b. TECLADO EN PANTALLA (iOS)
+   iOS no achica la página al abrir el teclado: lo tapa. Con la
+   Visual Viewport API medimos el espacio visible real y:
+   - subimos la barra de pedidos para que quede sobre el teclado
+   - ajustamos el alto del formulario de tarea al espacio visible
+   ========================================================= */
+const root = document.documentElement;
+let maxInnerHeight = window.innerHeight;
+
+function measureAsk() {
+  root.style.setProperty("--ask-h", ask.offsetHeight + "px");
+}
+
+function syncViewport() {
+  const vv = window.visualViewport;
+  if (!vv) return;
+  maxInnerHeight = Math.max(maxInnerHeight, window.innerHeight);
+  const kb = Math.max(0, Math.round(window.innerHeight - vv.height - vv.offsetTop));
+  root.style.setProperty("--kb", kb + "px");
+  root.style.setProperty("--vvh", Math.round(vv.height) + "px");
+  ask.classList.toggle("has-kb", kb > 0);
+  // iOS a veces desplaza la página al enfocar: la devolvemos a su lugar
+  if (vv.offsetTop > 0 && !modal.open) window.scrollTo(0, 0);
+}
+
+if (window.visualViewport) {
+  visualViewport.addEventListener("resize", syncViewport);
+  visualViewport.addEventListener("scroll", syncViewport);
+}
+window.addEventListener("resize", () => { syncViewport(); measureAsk(); });
+new ResizeObserver(measureAsk).observe(ask);
+
+/* Arreglo para el modo app de iPhone: después de cerrar el teclado
+   la pantalla puede quedar más chica. Si pasa, forzamos re-medir. */
+document.addEventListener("focusout", () => {
+  setTimeout(() => {
+    syncViewport();
+    if (window.innerHeight < maxInnerHeight - 4 && !document.activeElement?.matches("input, textarea, select")) {
+      const app = $("#app");
+      const y = board.scrollLeft;
+      app.style.display = "none";
+      void app.offsetHeight;   // fuerza el recálculo
+      app.style.display = "";
+      board.scrollLeft = y;
+      syncViewport();
+    }
+  }, 150);
+});
 askInput.addEventListener("input", autosize);
 
 /* =========================================================
@@ -1461,6 +1654,29 @@ $("#btn-theme").addEventListener("click", () => {
 
 $("#btn-new").addEventListener("click", () => openModal(null));
 $("#search").addEventListener("input", render);
+
+/* Búsqueda desplegable */
+const btnSearch = $("#btn-search");
+const searchbar = $("#searchbar");
+btnSearch.addEventListener("click", () => {
+  const open = searchbar.hidden;
+  searchbar.hidden = !open;
+  btnSearch.setAttribute("aria-expanded", String(open));
+  if (open) $("#search").focus();
+  else { $("#search").value = ""; render(); }
+});
+
+/* Menú de opciones */
+const btnMenu = $("#btn-menu");
+const menu = $("#menu");
+function toggleMenu(open = menu.hidden) {
+  menu.hidden = !open;
+  btnMenu.setAttribute("aria-expanded", String(open));
+}
+btnMenu.addEventListener("click", (e) => { e.stopPropagation(); toggleMenu(); });
+menu.addEventListener("click", () => toggleMenu(false));
+document.addEventListener("click", (e) => { if (!menu.hidden && !menu.contains(e.target)) toggleMenu(false); });
+document.addEventListener("keydown", (e) => { if (e.key === "Escape" && !menu.hidden) toggleMenu(false); });
 
 $("#btn-export").addEventListener("click", () => {
   const a = document.createElement("a");
@@ -1500,6 +1716,7 @@ document.addEventListener("keydown", (e) => {
 applyTheme(storedTheme());
 fillSelects();
 sb.auth.getSession().then(({ data }) => showApp(data.session));
+syncViewport();
 
 </script>
 </body>
