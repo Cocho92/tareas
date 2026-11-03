@@ -245,8 +245,10 @@ select.input option { background: var(--surface); color: var(--text); }
 /* Sticky + fondo sólido: iOS 26 no dibuja su desenfoque de borde
    ("scroll edge effect") cuando una barra fija/sticky opaca cubre el borde */
 .topbar {
-  position: sticky;
-  top: 0;
+  position: fixed;
+  top: var(--vv-top, 0px);
+  left: 0;
+  right: 0;
   z-index: 20;
   display: flex;
   flex-wrap: wrap;
@@ -466,11 +468,14 @@ select.input option { background: var(--surface); color: var(--text); }
 html:has(.app:not([hidden])), html:has(.app:not([hidden])) body { overflow: hidden; overscroll-behavior: none; }
 .app {
   position: fixed;
-  inset: 0 0 auto 0;
+  top: var(--vv-top, 0px);   /* top, no transform: iOS necesita ver el
+                                encabezado fijo respecto de la pantalla */
+  left: 0;
+  right: 0;
   display: flex;
   flex-direction: column;
   height: var(--vvh);
-  transform: translateY(var(--vv-top, 0px));
+  padding-top: var(--topbar-h, 56px);
   background: var(--bg);
 }
 
@@ -696,8 +701,7 @@ html:has(.app:not([hidden])), html:has(.app:not([hidden])) body { overflow: hidd
    ========================================================= */
 .modal {
   position: fixed;
-  inset: 0 0 auto 0;
-  transform: translateY(var(--vv-top, 0px));
+  inset: var(--vv-top, 0px) 0 auto 0;
   width: 100%;
   max-width: 100%;
   height: var(--vvh);
@@ -783,7 +787,8 @@ input[type="date"].input { min-height: var(--tap); -webkit-appearance: none; app
   .colnav { display: none; }
 
   /* En pantallas grandes la barra de pedidos va arriba, bajo el título */
-  .app { position: static; height: 100dvh; transform: none; }
+  .app { position: static; height: 100dvh; padding-top: 0; }
+  .topbar { position: sticky; top: 0; }
   .ask { position: static; order: 0; padding-left: max(24px, env(safe-area-inset-left, 0px)); padding-right: max(24px, env(safe-area-inset-right, 0px)); border-top: 0; border-bottom: 1px solid var(--border); }
   .ask:not(.has-kb) { padding-bottom: var(--space-2); }
   .app > .ask { order: 1; }
@@ -794,7 +799,6 @@ input[type="date"].input { min-height: var(--tap); -webkit-appearance: none; app
 
   .modal {
     inset: 0;
-    transform: none;
     width: min(520px, calc(100vw - 32px));
     height: auto;
     max-height: calc(100dvh - 48px);
@@ -1621,6 +1625,9 @@ if (window.visualViewport) {
 }
 window.addEventListener("resize", () => { syncViewport(); measureAsk(); });
 new ResizeObserver(measureAsk).observe(ask);
+// El encabezado es fijo: el contenido arranca justo debajo de él
+const topbarEl = $(".topbar");
+new ResizeObserver(() => root.style.setProperty("--topbar-h", topbarEl.offsetHeight + "px")).observe(topbarEl);
 
 /* Arreglo para el modo app de iPhone: después de cerrar el teclado
    la pantalla puede quedar más chica. Si pasa, forzamos re-medir. */
