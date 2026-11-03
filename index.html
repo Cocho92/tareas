@@ -255,6 +255,7 @@ select.input option { background: var(--surface); color: var(--text); }
   padding-right: max(12px, env(safe-area-inset-right, 0px));
   border-bottom: 1px solid var(--border);
   background: var(--bg);
+  flex-shrink: 0;
 }
 
 .topbar__brand { display: flex; align-items: center; gap: var(--space-2); flex: 1; min-width: 0; }
@@ -361,11 +362,9 @@ select.input option { background: var(--surface); color: var(--text); }
 
 /* Barra de pedidos a Claude: fija abajo; con teclado, sube con él */
 .ask {
-  position: fixed;
-  left: 0;
-  right: 0;
-  bottom: var(--kb);
+  position: relative;
   z-index: 25;
+  flex-shrink: 0;
   display: flex;
   flex-direction: column;
   gap: var(--space-2);
@@ -463,9 +462,13 @@ select.input option { background: var(--surface); color: var(--text); }
    y la página no salta cuando aparece el teclado */
 html:has(.app:not([hidden])), html:has(.app:not([hidden])) body { overflow: hidden; overscroll-behavior: none; }
 .app {
+  position: fixed;
+  inset: 0 0 auto 0;
   display: flex;
   flex-direction: column;
-  height: 100dvh;
+  height: var(--vvh);
+  transform: translateY(var(--vv-top, 0px));
+  background: var(--bg);
 }
 
 /* =========================================================
@@ -478,7 +481,7 @@ html:has(.app:not([hidden])), html:has(.app:not([hidden])) body { overflow: hidd
   min-height: 0;
   gap: var(--space-3);
   padding-top: var(--space-3);
-  padding-bottom: calc(var(--ask-h, 64px) + var(--space-3));
+  padding-bottom: var(--space-3);
   padding-left: max(12px, env(safe-area-inset-left, 0px));
   padding-right: max(12px, env(safe-area-inset-right, 0px));
   overflow-x: auto;
@@ -691,6 +694,7 @@ html:has(.app:not([hidden])), html:has(.app:not([hidden])) body { overflow: hidd
 .modal {
   position: fixed;
   inset: 0 0 auto 0;
+  transform: translateY(var(--vv-top, 0px));
   width: 100%;
   max-width: 100%;
   height: var(--vvh);
@@ -776,6 +780,7 @@ input[type="date"].input { min-height: var(--tap); -webkit-appearance: none; app
   .colnav { display: none; }
 
   /* En pantallas grandes la barra de pedidos va arriba, bajo el título */
+  .app { position: static; height: 100dvh; transform: none; }
   .ask { position: static; order: 0; padding-left: max(24px, env(safe-area-inset-left, 0px)); padding-right: max(24px, env(safe-area-inset-right, 0px)); border-top: 0; border-bottom: 1px solid var(--border); }
   .ask:not(.has-kb) { padding-bottom: var(--space-2); }
   .app > .ask { order: 1; }
@@ -786,6 +791,7 @@ input[type="date"].input { min-height: var(--tap); -webkit-appearance: none; app
 
   .modal {
     inset: 0;
+    transform: none;
     width: min(520px, calc(100vw - 32px));
     height: auto;
     max-height: calc(100dvh - 48px);
@@ -1589,16 +1595,21 @@ function measureAsk() {
   root.style.setProperty("--ask-h", ask.offsetHeight + "px");
 }
 
+/* La app copia el área visible real: alto y desplazamiento.
+   Así el campo enfocado ya queda a la vista y iOS no tiene que
+   mover la pantalla; no "peleamos" con su scroll automático. */
+let vvFrame = 0;
 function syncViewport() {
-  const vv = window.visualViewport;
-  if (!vv) return;
-  maxInnerHeight = Math.max(maxInnerHeight, window.innerHeight);
-  const kb = Math.max(0, Math.round(window.innerHeight - vv.height - vv.offsetTop));
-  root.style.setProperty("--kb", kb + "px");
-  root.style.setProperty("--vvh", Math.round(vv.height) + "px");
-  ask.classList.toggle("has-kb", kb > 0);
-  // iOS a veces desplaza la página al enfocar: la devolvemos a su lugar
-  if (vv.offsetTop > 0 && !modal.open) window.scrollTo(0, 0);
+  cancelAnimationFrame(vvFrame);
+  vvFrame = requestAnimationFrame(() => {
+    const vv = window.visualViewport;
+    if (!vv) return;
+    maxInnerHeight = Math.max(maxInnerHeight, window.innerHeight);
+    const kb = Math.max(0, Math.round(window.innerHeight - vv.height - vv.offsetTop));
+    root.style.setProperty("--vvh", Math.round(vv.height) + "px");
+    root.style.setProperty("--vv-top", Math.round(vv.offsetTop) + "px");
+    ask.classList.toggle("has-kb", kb > 40);
+  });
 }
 
 if (window.visualViewport) {
