@@ -1516,7 +1516,9 @@ ask.addEventListener("submit", async (e) => {
 });
 
 /* Dictado por voz (Web Speech API del navegador).
-   Tocás el micrófono, hablás, y al terminar el pedido se envía solo.
+   Tocás el micrófono, hablás (las pausas no cortan) y volvés a tocarlo
+   para terminar. El texto queda en el cuadro para revisarlo: se envía
+   recién al tocar el botón azul, como en WhatsApp.
    Si el navegador no lo soporta, el botón no aparece y queda el
    dictado del teclado del celular. */
 const micBtn = $("#ask-mic");
@@ -1537,14 +1539,14 @@ if (Recognition) {
     recognizer = new Recognition();
     recognizer.lang = "es-AR";
     recognizer.interimResults = true;
-    recognizer.continuous = false;
+    recognizer.continuous = true;
 
     const before = askInput.value.trim();
     let finalText = "";
 
     recognizer.onstart = () => {
       setListening(true);
-      setReply("Escuchando… hablá y cuando termines hacé una pausa.", { sticky: true });
+      setReply("Escuchando… tocá el micrófono otra vez para terminar.", { sticky: true });
     };
     recognizer.onresult = (e) => {
       let interim = "";
@@ -1566,12 +1568,8 @@ if (Recognition) {
     recognizer.onend = () => {
       setListening(false);
       recognizer = null;
-      if (finalText.trim()) {
-        setReply("");
-        ask.requestSubmit();
-      } else if (!askReply.classList.contains("is-error")) {
-        setReply("");
-      }
+      // No se envía solo: queda el texto para revisar y tocar Enviar
+      if (!askReply.classList.contains("is-error")) setReply("");
     };
 
     try { recognizer.start(); } catch { setListening(false); recognizer = null; }
