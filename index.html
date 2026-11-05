@@ -1494,14 +1494,24 @@ ask.addEventListener("submit", async (e) => {
   setReply("Pensando…", { sticky: true });
 
   const now = new Date();
-  const { data, error } = await sb.functions.invoke("pedido", {
-    body: {
-      request,
-      today: todayISO(),
-      todayLong: now.toLocaleDateString("es-AR", { weekday: "long", day: "numeric", month: "long", year: "numeric" }),
-    },
-  });
+  // Nunca quedarse colgado: si en 70 s no hay respuesta, se avisa
+  const timeout = new Promise((resolve) => setTimeout(() => resolve({
+    data: { ok: false, error: "La IA tardó demasiado en responder. Revisá si la tarjeta se creó y, si no, probá de nuevo." },
+  }), 70000));
+  const slowNote = setTimeout(() => setReply("Sigue pensando… la IA gratis a veces tarda.", { sticky: true }), 12000);
+  const { data, error } = await Promise.race([
+    sb.functions.invoke("pedido", {
+      body: {
+        request,
+        today: todayISO(),
+        todayLong: now.toLocaleDateString("es-AR", { weekday: "long", day: "numeric", month: "long", year: "numeric" }),
+      },
+    }),
+    timeout,
+  ]);
+  clearTimeout(slowNote);
   ask.classList.remove("is-busy");
+  if (data?.created?.length) await fetchTasks();
 
   if (error || !data?.ok) {
     setReply(data?.error || "No se pudo completar el pedido. Probá de nuevo.", { error: true });
