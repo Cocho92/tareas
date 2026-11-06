@@ -1,0 +1,331 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#d9dcdf" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#24282d" media="(prefers-color-scheme: dark)">
+<title>Escriba clínico (prueba)</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Archivo:wdth,wght@62..125,400..800&display=swap">
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.min.js"></script>
+<style>
+/* Prototipo del escriba clínico. Misma paleta que el tablero. */
+:root {
+  --font: "Archivo", "Arial Narrow", system-ui, sans-serif;
+  --fs-xs: 0.75rem; --fs-sm: 0.875rem; --fs-md: 1rem; --fs-lg: 1.25rem; --fs-xl: 1.625rem;
+  --space-1: 4px; --space-2: 8px; --space-3: 12px; --space-4: 16px; --space-5: 24px;
+  --radius: 6px; --tap: 44px;
+  --bg: #d9dcdf; --plate: #eceef0; --surface: #f4f5f6; --border: #b9bec4;
+  --text: #22262b; --text-muted: #5c636b;
+  --primary: #1f4e8c; --primary-text: #fff; --danger: #a83a24;
+  --note: #efd9a0; --note-ink: #22262b; --warn-bg: #f3e3b8;
+}
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: #24282d; --plate: #383e45; --surface: #31363c; --border: #4a5159;
+    --text: #e3e5e8; --text-muted: #a0a7af;
+    --primary: #5b8fd1; --primary-text: #10233d; --danger: #f08a73;
+    --note: #dbc58c; --warn-bg: #4a4130;
+    color-scheme: dark;
+  }
+}
+* , *::before, *::after { box-sizing: border-box; }
+[hidden] { display: none !important; }
+body {
+  margin: 0; font-family: var(--font); font-size: var(--fs-md); line-height: 1.45;
+  color: var(--text); background: var(--bg); -webkit-font-smoothing: antialiased;
+}
+h1, h2, h3, p { margin: 0; }
+:focus-visible { outline: 2px solid var(--primary); outline-offset: 2px; }
+
+.top {
+  position: sticky; top: 0; z-index: 5;
+  display: flex; align-items: center; gap: var(--space-3);
+  padding-block: max(var(--space-2), env(safe-area-inset-top, 0px)) var(--space-2);
+  padding-left: max(12px, env(safe-area-inset-left, 0px));
+  padding-right: max(12px, env(safe-area-inset-right, 0px));
+  border-bottom: 1px solid var(--border); background: var(--bg);
+}
+.top a { color: var(--text); text-decoration: none; font-weight: 600; min-height: var(--tap); display: inline-flex; align-items: center; }
+.top h1 { font-size: var(--fs-lg); font-weight: 760; font-stretch: 72%; flex: 1; }
+.badge { font-size: var(--fs-xs); font-weight: 700; padding: 2px 8px; border-radius: 999px; background: var(--warn-bg); color: var(--text); }
+
+main {
+  max-width: 760px; margin: 0 auto;
+  display: flex; flex-direction: column; gap: var(--space-4);
+  padding-block: var(--space-4) max(var(--space-5), env(safe-area-inset-bottom, 0px));
+  padding-left: max(12px, env(safe-area-inset-left, 0px));
+  padding-right: max(12px, env(safe-area-inset-right, 0px));
+}
+.warn {
+  padding: var(--space-3); border-radius: var(--radius); background: var(--warn-bg);
+  font-size: var(--fs-sm);
+}
+.warn strong { font-weight: 700; }
+
+.panel {
+  display: flex; flex-direction: column; gap: var(--space-3);
+  padding: var(--space-4); border: 1px solid var(--border); border-radius: var(--radius); background: var(--plate);
+}
+.rec-row { display: flex; align-items: center; gap: var(--space-4); }
+.rec {
+  flex-shrink: 0; width: 72px; height: 72px; border-radius: 50%;
+  border: 3px solid var(--danger); background: var(--surface); cursor: pointer;
+  display: grid; place-items: center;
+}
+.rec::before { content: ""; width: 30px; height: 30px; border-radius: 50%; background: var(--danger); transition: border-radius 150ms, width 150ms, height 150ms; }
+.rec.is-on::before { width: 26px; height: 26px; border-radius: 4px; }
+.rec.is-on { animation: pulse 1.4s ease-in-out infinite; }
+@keyframes pulse { 50% { box-shadow: 0 0 0 8px color-mix(in srgb, var(--danger) 25%, transparent); } }
+@media (prefers-reduced-motion: reduce) { .rec.is-on { animation: none; } }
+.rec-info { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.rec-title { font-weight: 700; font-size: var(--fs-lg); font-stretch: 80%; }
+.rec-time { font-variant-numeric: tabular-nums; color: var(--text-muted); font-size: var(--fs-sm); }
+.or { font-size: var(--fs-sm); color: var(--text-muted); }
+.upload { display: inline-flex; align-items: center; gap: var(--space-2); min-height: var(--tap); padding: 0 var(--space-4);
+  border: 1px solid var(--border); border-radius: var(--radius); background: var(--surface); font-weight: 600; cursor: pointer; align-self: flex-start; }
+.status { font-size: var(--fs-sm); color: var(--text-muted); white-space: pre-line; }
+.status.is-error { color: var(--danger); }
+
+.btn { min-height: var(--tap); padding: 0 var(--space-4); border-radius: var(--radius); border: 1px solid var(--border);
+  font: inherit; font-weight: 600; font-size: var(--fs-sm); color: var(--text); background: var(--surface); cursor: pointer; }
+.btn--primary { background: var(--primary); color: var(--primary-text); border-color: transparent; }
+.actions { display: flex; flex-wrap: wrap; gap: var(--space-2); }
+
+.result { display: flex; flex-direction: column; gap: var(--space-4); }
+.result h2 { font-size: var(--fs-lg); font-weight: 760; font-stretch: 80%; }
+.check { padding: var(--space-3); border-radius: var(--radius); background: var(--warn-bg); }
+.check h3 { font-size: var(--fs-sm); font-weight: 700; margin-bottom: var(--space-1); }
+.check ul { margin: 0; padding-left: 1.2em; font-size: var(--fs-sm); }
+
+.note { display: flex; flex-direction: column; gap: var(--space-3); padding: var(--space-4); border-radius: 2px; background: var(--note); color: var(--note-ink); }
+.note label { display: flex; flex-direction: column; gap: 2px; }
+.note span { font-size: var(--fs-xs); font-weight: 700; color: #4d535a; }
+.note textarea {
+  width: 100%; min-height: 2.6em; padding: var(--space-2); resize: none; overflow: hidden;
+  border: 1px solid rgb(34 38 43 / 0.18); border-radius: 4px; background: rgb(255 255 255 / 0.55);
+  font: inherit; font-size: var(--fs-md); line-height: 1.45; color: var(--note-ink); field-sizing: content;
+}
+.note textarea.is-empty { color: #6b6f75; font-style: italic; }
+
+details { border: 1px solid var(--border); border-radius: var(--radius); background: var(--plate); }
+summary { min-height: var(--tap); display: flex; align-items: center; padding: 0 var(--space-3); font-weight: 600; cursor: pointer; }
+.dialog { display: flex; flex-direction: column; gap: var(--space-2); padding: 0 var(--space-3) var(--space-3); font-size: var(--fs-sm); }
+.dialog p { max-width: 65ch; }
+.who { font-weight: 700; }
+.who--Médico { color: var(--primary); }
+.raw { font-size: var(--fs-xs); color: var(--text-muted); padding: 0 var(--space-3) var(--space-3); white-space: pre-wrap; }
+.meta { font-size: var(--fs-xs); color: var(--text-muted); }
+</style>
+</head>
+<body>
+<header class="top">
+  <a href="../">← Tablero</a>
+  <h1>Escriba clínico</h1>
+  <span class="badge">Prueba</span>
+</header>
+
+<main>
+  <p class="warn"><strong>Solo consultas simuladas.</strong> No uses voces ni datos de pacientes reales: este prototipo usa servicios gratuitos sin acuerdo de protección de datos de salud. No se guarda nada: el audio y la nota se pierden al cerrar la página.</p>
+
+  <section class="panel" id="need-login" hidden>
+    <p>Para usar el escriba, primero entrá al tablero con tu usuario.</p>
+    <a class="btn btn--primary" href="../" style="display:inline-flex;align-items:center;align-self:flex-start;text-decoration:none">Ir al tablero</a>
+  </section>
+
+  <section class="panel" id="recorder" hidden>
+    <div class="rec-row">
+      <button class="rec" id="rec" type="button" aria-label="Grabar consulta" aria-pressed="false"></button>
+      <div class="rec-info">
+        <span class="rec-title" id="rec-title">Grabar consulta</span>
+        <span class="rec-time" id="rec-time">Hasta 20 minutos. Dejá el celular cerca, con la pantalla encendida.</span>
+      </div>
+    </div>
+    <p class="or">o subí un audio ya grabado (m4a, mp3, wav, ogg, webm):</p>
+    <label class="upload">Subir audio<input type="file" id="file" accept="audio/*,.m4a,.mp3,.wav,.ogg,.webm" hidden></label>
+    <p class="status" id="status" aria-live="polite"></p>
+  </section>
+
+  <section class="result" id="result" hidden>
+    <h2>Borrador de evolución</h2>
+    <div class="check" id="check" hidden>
+      <h3>Revisar antes de usar</h3>
+      <ul id="check-list"></ul>
+    </div>
+    <div class="note" id="note"></div>
+    <div class="actions">
+      <button class="btn btn--primary" id="copy" type="button">Copiar nota</button>
+      <button class="btn" id="again" type="button">Nueva consulta</button>
+    </div>
+    <details>
+      <summary>Diálogo identificado (médico / paciente)</summary>
+      <div class="dialog" id="dialog"></div>
+    </details>
+    <details>
+      <summary>Transcripción automática original</summary>
+      <p class="raw" id="raw"></p>
+    </details>
+    <p class="meta" id="meta"></p>
+  </section>
+</main>
+
+<script>
+const sb = window.supabase.createClient(
+  "https://thtrdqmdzctmazljbtvn.supabase.co",
+  "sb_publishable_KNgvniOPDVrlQ3dMTGpbLA_HTmLZAPh"
+);
+const $ = (s) => document.querySelector(s);
+const MAX_SECONDS = 20 * 60;
+const SECTIONS = [
+  ["motivo_consulta", "Motivo de consulta"],
+  ["enfermedad_actual", "Enfermedad actual"],
+  ["antecedentes", "Antecedentes"],
+  ["medicacion_habitual", "Medicación habitual"],
+  ["alergias", "Alergias"],
+  ["examen_fisico", "Examen físico"],
+  ["impresion_diagnostica", "Impresión diagnóstica"],
+  ["plan", "Plan"],
+  ["indicaciones_al_paciente", "Indicaciones al paciente"],
+  ["proximo_control", "Próximo control"],
+];
+
+function status(text, error = false) {
+  $("#status").textContent = text;
+  $("#status").classList.toggle("is-error", error);
+}
+
+/* Sesión compartida con el tablero (mismo sitio) */
+sb.auth.getSession().then(({ data }) => {
+  $("#recorder").hidden = !data.session;
+  $("#need-login").hidden = Boolean(data.session);
+});
+
+/* ---------- Grabación ---------- */
+let recorder = null, chunks = [], started = 0, timer = null, wakeLock = null;
+const pickMime = () => ["audio/mp4", "audio/webm;codecs=opus", "audio/webm", "audio/ogg;codecs=opus"]
+  .find((m) => window.MediaRecorder?.isTypeSupported?.(m)) || "";
+const ext = (m) => (m.includes("mp4") ? "m4a" : m.includes("ogg") ? "ogg" : "webm");
+
+function setRec(on) {
+  $("#rec").classList.toggle("is-on", on);
+  $("#rec").setAttribute("aria-pressed", String(on));
+  $("#rec").setAttribute("aria-label", on ? "Terminar y procesar" : "Grabar consulta");
+  $("#rec-title").textContent = on ? "Grabando… tocá para terminar" : "Grabar consulta";
+  $("#file").disabled = on;
+}
+
+async function start() {
+  if (!navigator.mediaDevices?.getUserMedia || !window.MediaRecorder) {
+    status("Este navegador no permite grabar. Grabá con la app de notas de voz y subí el archivo.", true);
+    return;
+  }
+  let stream;
+  try { stream = await navigator.mediaDevices.getUserMedia({ audio: { echoCancellation: false, noiseSuppression: true } }); }
+  catch { status("No hay permiso para usar el micrófono. Habilitalo en los ajustes del sitio.", true); return; }
+  const mime = pickMime();
+  recorder = new MediaRecorder(stream, mime ? { mimeType: mime } : undefined);
+  chunks = [];
+  recorder.ondataavailable = (e) => { if (e.data.size) chunks.push(e.data); };
+  recorder.onstop = () => {
+    stream.getTracks().forEach((t) => t.stop());
+    clearInterval(timer);
+    wakeLock?.release?.().catch(() => {});
+    setRec(false);
+    const type = recorder.mimeType || mime || "audio/webm";
+    const blob = new Blob(chunks, { type });
+    recorder = null;
+    if ((Date.now() - started) / 1000 < 3) { status("La grabación quedó muy corta.", true); return; }
+    process(blob, `consulta.${ext(type)}`);
+  };
+  recorder.start(1000);
+  started = Date.now();
+  setRec(true);
+  status("");
+  try { wakeLock = await navigator.wakeLock?.request("screen"); } catch { /* opcional */ }
+  const tick = () => {
+    const s = Math.floor((Date.now() - started) / 1000);
+    $("#rec-time").textContent = `${Math.floor(s / 60)}:${String(s % 60).padStart(2, "0")} de 20:00 · no bloquees la pantalla`;
+    if (s >= MAX_SECONDS) recorder?.stop();
+  };
+  tick();
+  timer = setInterval(tick, 500);
+}
+
+$("#rec").addEventListener("click", () => (recorder ? recorder.stop() : start()));
+$("#file").addEventListener("change", (e) => {
+  const f = e.target.files[0];
+  e.target.value = "";
+  if (f) process(f, f.name);
+});
+
+/* ---------- Procesar ---------- */
+async function process(blob, filename) {
+  $("#result").hidden = true;
+  $("#rec").disabled = true;
+  const mb = (blob.size / 1024 / 1024).toFixed(1);
+  status(`Transcribiendo y armando la nota (${mb} MB)… puede tardar hasta un minuto.`);
+  const body = new FormData();
+  body.append("audio", blob, filename);
+  const timeout = new Promise((r) => setTimeout(() => r({ data: { ok: false, error: "Tardó demasiado. Probá con un audio más corto." } }), 150000));
+  const { data, error } = await Promise.race([sb.functions.invoke("escriba", { body }), timeout]);
+  $("#rec").disabled = false;
+  if (error || !data?.ok) { status(data?.error || "No se pudo procesar el audio. Probá de nuevo.", true); return; }
+  status("");
+  show(data);
+}
+
+function grow(t) { t.style.height = "auto"; t.style.height = t.scrollHeight + 2 + "px"; }
+
+function show(data) {
+  const note = $("#note");
+  note.replaceChildren();
+  for (const [key, label] of SECTIONS) {
+    const value = String(data.nota?.[key] ?? "No referido").trim() || "No referido";
+    const wrap = document.createElement("label");
+    const span = document.createElement("span");
+    span.textContent = label;
+    const ta = document.createElement("textarea");
+    ta.dataset.key = key;
+    ta.value = value;
+    ta.classList.toggle("is-empty", /^no referid/i.test(value));
+    ta.addEventListener("input", () => { grow(ta); ta.classList.remove("is-empty"); });
+    wrap.append(span, ta);
+    note.append(wrap);
+  }
+  const checks = (data.a_verificar || []).filter(Boolean);
+  $("#check").hidden = !checks.length;
+  $("#check-list").replaceChildren(...checks.map((c) => Object.assign(document.createElement("li"), { textContent: c })));
+
+  $("#dialog").replaceChildren(...(data.dialogo || []).map((d) => {
+    const p = document.createElement("p");
+    const who = Object.assign(document.createElement("span"), { className: `who who--${d.hablante}`, textContent: `${d.hablante}: ` });
+    p.append(who, document.createTextNode(d.texto || ""));
+    return p;
+  }));
+  $("#raw").textContent = (data.transcript || []).join("\n");
+  const min = data.duration ? `${Math.round(data.duration / 60 * 10) / 10} min de audio · ` : "";
+  $("#meta").textContent = `${min}modelo: ${data.model || "?"} · borrador generado automáticamente, requiere revisión médica`;
+
+  $("#result").hidden = false;
+  requestAnimationFrame(() => note.querySelectorAll("textarea").forEach(grow));
+  $("#result").scrollIntoView({ behavior: "smooth", block: "start" });
+}
+
+$("#copy").addEventListener("click", async () => {
+  const text = [...$("#note").querySelectorAll("textarea")]
+    .map((t) => `${SECTIONS.find(([k]) => k === t.dataset.key)[1]}: ${t.value.trim()}`)
+    .join("\n\n");
+  try { await navigator.clipboard.writeText(text); $("#copy").textContent = "Copiada"; }
+  catch { $("#copy").textContent = "No se pudo copiar"; }
+  setTimeout(() => ($("#copy").textContent = "Copiar nota"), 2000);
+});
+$("#again").addEventListener("click", () => {
+  $("#result").hidden = true;
+  status("");
+  window.scrollTo({ top: 0, behavior: "smooth" });
+});
+</script>
+</body>
+</html>

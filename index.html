@@ -375,6 +375,7 @@ select.input option { background: var(--surface); color: var(--text); }
   cursor: pointer;
 }
 .menu__item:hover, .menu__item:focus-visible { background: var(--surface); }
+a.menu__item { text-decoration: none; }
 #btn-logout { color: var(--danger); }
 .menu__version { margin: 0; padding: var(--space-2) var(--space-3) var(--space-1); font-size: var(--fs-xs); color: var(--text-muted); }
 
@@ -976,6 +977,7 @@ input[type="date"].input { min-height: var(--tap); -webkit-appearance: none; app
       <button class="btn btn--ghost btn--icon" id="btn-menu" type="button" aria-label="Más opciones" aria-expanded="false" aria-controls="menu"><svg viewBox="0 0 24 24" width="20" height="20" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="5" cy="12" r="1.6" fill="currentColor"/><circle cx="12" cy="12" r="1.6" fill="currentColor"/><circle cx="19" cy="12" r="1.6" fill="currentColor"/></svg></button>
       <div class="menu" id="menu" role="menu" hidden>
         <button class="menu__item" id="btn-boards" type="button" role="menuitem" hidden>Tableros compartidos</button>
+        <a class="menu__item" id="btn-escriba" href="escriba/" role="menuitem" hidden>Escriba clínico (prueba)</a>
         <button class="menu__item" id="btn-theme" type="button" role="menuitem">Cambiar tema</button>
         <button class="menu__item" id="btn-export" type="button" role="menuitem">Exportar respaldo</button>
         <label class="menu__item" for="input-import" role="menuitem">Importar respaldo</label>
@@ -1281,6 +1283,7 @@ async function loadContext(session) {
     profiles = ps || [];
   }
   $("#btn-boards").hidden = !me.is_admin;
+  $("#btn-escriba").hidden = !me.is_admin;
 
   let saved = null;
   try { saved = localStorage.getItem(BOARD_KEY); } catch { /* sin almacenamiento */ }
