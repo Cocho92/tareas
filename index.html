@@ -634,8 +634,9 @@ html:has(.app:not([hidden])), html:has(.app:not([hidden])) body { overflow: hidd
   font-size: var(--fs-sm);
   line-height: 1.5;
   color: var(--card-ink-muted);
+  white-space: pre-line;   /* respeta las viñetas, una por línea */
   display: -webkit-box;
-  -webkit-line-clamp: 3;
+  -webkit-line-clamp: 5;
   -webkit-box-orient: vertical;
   overflow: hidden;
 }
@@ -968,7 +969,7 @@ input[type="date"].input { min-height: var(--tap); -webkit-appearance: none; app
 
       <label class="field">
         <span class="field__label">Descripción</span>
-        <textarea class="input" id="f-desc" name="desc" rows="2"></textarea>
+        <textarea class="input" id="f-desc" name="desc" rows="5"></textarea>
       </label>
 
       <div class="field-row">
