@@ -258,7 +258,7 @@ select.input option { background: var(--surface); color: var(--text); }
   top: var(--vv-top, 0px);
   left: 0;
   right: 0;
-  z-index: 20;
+  z-index: 40;   /* por encima de la barra de pedidos, así el menú no queda tapado */
   display: flex;
   flex-wrap: wrap;
   align-items: center;
@@ -353,7 +353,7 @@ select.input option { background: var(--surface); color: var(--text); }
   z-index: 30;
   display: flex;
   flex-direction: column;
-  min-width: 200px;
+  min-width: 240px;
   padding: var(--space-1);
   border: 1px solid var(--border);
   border-radius: var(--radius-rack);
@@ -1785,7 +1785,7 @@ ask.addEventListener("submit", async (e) => {
    ========================================================= */
 const recBtn = $("#ask-rec");
 const MAX_REC_SECONDS = 120;
-const APP_VERSION = "6-nov · audio 2";
+const APP_VERSION = "6-nov · menú";
 let recorder = null;
 let recChunks = [];
 let recTimer = null;
