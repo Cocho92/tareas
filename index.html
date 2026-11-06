@@ -294,6 +294,38 @@ select.input option { background: var(--surface); color: var(--text); }
   white-space: nowrap;
 }
 
+/* Selector de tablero: se ve como el título, con una flecha */
+.topbar__title { min-width: 0; }
+.board-select {
+  max-width: 100%;
+  padding: 2px 22px 2px 0;
+  border: 0;
+  font: inherit;
+  font-stretch: inherit;
+  letter-spacing: inherit;
+  color: var(--text);
+  background: transparent;
+  -webkit-appearance: none;
+  appearance: none;
+  text-overflow: ellipsis;
+  cursor: pointer;
+  field-sizing: content;   /* el ancho sigue al nombre del tablero elegido */
+}
+.topbar__title { position: relative; }
+.topbar__title::after {
+  content: "";
+  position: absolute;
+  right: 4px;
+  top: 50%;
+  width: 7px;
+  height: 7px;
+  border-right: 2px solid var(--text-muted);
+  border-bottom: 2px solid var(--text-muted);
+  transform: translateY(-70%) rotate(45deg);
+  pointer-events: none;
+}
+.board-select option, .board-select optgroup { font-family: system-ui, sans-serif; font-size: 16px; color: var(--text); background: var(--surface); }
+
 /* Estado de sincronización junto al título */
 .topbar__status {
   overflow: hidden;
@@ -787,6 +819,49 @@ html:has(.app:not([hidden])), html:has(.app:not([hidden])) body { overflow: hidd
 .field-row .input { min-width: 0; }
 input[type="date"].input { min-height: var(--tap); -webkit-appearance: none; appearance: none; }
 
+/* Administración de tableros */
+.boards-list { display: flex; flex-direction: column; gap: var(--space-2); }
+.boards-list__item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-3);
+  min-height: var(--tap);
+  padding: var(--space-2) var(--space-3);
+  border: 1px solid var(--border);
+  border-left: 5px solid var(--c-sky);
+  border-radius: var(--radius-control);
+  font: inherit;
+  text-align: left;
+  color: var(--text);
+  background: var(--surface);
+  cursor: pointer;
+}
+.boards-list__name { font-weight: 650; font-stretch: var(--wdth-card); }
+.boards-list__count { font-size: var(--fs-sm); color: var(--text-muted); white-space: nowrap; }
+.boards-list__empty { color: var(--text-muted); font-size: var(--fs-sm); }
+
+.board-editor { display: flex; flex-direction: column; gap: var(--space-4); }
+.members { margin: 0; padding: 0; border: 0; display: flex; flex-direction: column; gap: var(--space-2); }
+.members__hint { font-size: var(--fs-sm); color: var(--text-muted); }
+.members__list { display: flex; flex-direction: column; border: 1px solid var(--border); border-radius: var(--radius-control); overflow: hidden; }
+.member {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  min-height: var(--tap);
+  padding: var(--space-2) var(--space-3);
+  border-bottom: 1px solid var(--border);
+  background: var(--surface);
+  cursor: pointer;
+}
+.member:last-child { border-bottom: 0; }
+.member input { width: 20px; height: 20px; accent-color: var(--primary); flex-shrink: 0; }
+.member__email { min-width: 0; overflow-wrap: anywhere; }
+.member__tag { margin-left: auto; font-size: var(--fs-xs); color: var(--text-muted); }
+.board-editor__msg { font-size: var(--fs-sm); color: var(--danger); }
+.board-editor__msg:empty { display: none; }
+
 @keyframes sheet-in {
   from { transform: translateY(16px); opacity: 0; }
   to   { transform: none; opacity: 1; }
@@ -885,7 +960,10 @@ input[type="date"].input { min-height: var(--tap); -webkit-appearance: none; app
 <header class="topbar">
   <div class="topbar__brand">
     <span class="topbar__logo" aria-hidden="true"></span>
-    <h1 class="topbar__title">Mis tareas</h1>
+    <h1 class="topbar__title">
+      <label class="visually-hidden" for="board-select">Tablero</label>
+      <select class="board-select" id="board-select"></select>
+    </h1>
     <span class="topbar__status" id="status"></span>
   </div>
 
@@ -895,6 +973,7 @@ input[type="date"].input { min-height: var(--tap); -webkit-appearance: none; app
     <div class="menu-wrap">
       <button class="btn btn--ghost btn--icon" id="btn-menu" type="button" aria-label="Más opciones" aria-expanded="false" aria-controls="menu"><svg viewBox="0 0 24 24" width="20" height="20" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="5" cy="12" r="1.6" fill="currentColor"/><circle cx="12" cy="12" r="1.6" fill="currentColor"/><circle cx="19" cy="12" r="1.6" fill="currentColor"/></svg></button>
       <div class="menu" id="menu" role="menu" hidden>
+        <button class="menu__item" id="btn-boards" type="button" role="menuitem" hidden>Tableros compartidos</button>
         <button class="menu__item" id="btn-theme" type="button" role="menuitem">Cambiar tema</button>
         <button class="menu__item" id="btn-export" type="button" role="menuitem">Exportar respaldo</button>
         <label class="menu__item" for="input-import" role="menuitem">Importar respaldo</label>
@@ -976,6 +1055,39 @@ input[type="date"].input { min-height: var(--tap); -webkit-appearance: none; app
 <!-- =====================================================
      MODAL — crear / editar tarea
      ===================================================== -->
+<!-- =====================================================
+     TABLEROS COMPARTIDOS — solo administrador
+     ===================================================== -->
+<dialog class="modal" id="boards-modal">
+  <div class="modal__form">
+    <header class="modal__head">
+      <button class="btn btn--ghost modal__cancel" id="boards-back" type="button">Cerrar</button>
+      <h2 class="modal__title" id="boards-title">Tableros compartidos</h2>
+      <button class="btn btn--ghost btn--icon modal__delete" id="board-delete" type="button" aria-label="Eliminar tablero" title="Eliminar tablero" hidden><svg viewBox="0 0 24 24" width="20" height="20" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 7h16M10 11v6M14 11v6M6 7l1 13h10l1-13M9 7V4h6v3"/></svg><span class="modal__delete-label">¿Eliminar?</span></button>
+      <button class="btn btn--primary" id="boards-action" type="button">Nuevo</button>
+    </header>
+
+    <div class="modal__body">
+      <!-- Lista -->
+      <div class="boards-list" id="boards-list"></div>
+
+      <!-- Edición -->
+      <form class="board-editor" id="board-editor" hidden>
+        <label class="field">
+          <span class="field__label">Nombre</span>
+          <input class="input" id="board-name" maxlength="60" required placeholder="Ej: Sistemas" autocapitalize="sentences">
+        </label>
+        <fieldset class="members">
+          <legend class="field__label">Miembros</legend>
+          <p class="members__hint">Pueden ver y cargar tareas en este tablero. Vos, como administrador, ves todos.</p>
+          <div class="members__list" id="board-members"></div>
+        </fieldset>
+        <p class="board-editor__msg" id="board-msg" aria-live="polite"></p>
+      </form>
+    </div>
+  </div>
+</dialog>
+
 <dialog class="modal" id="modal">
   <form class="modal__form" id="task-form">
     <header class="modal__head">
@@ -1122,11 +1234,84 @@ function sortTasks() {
 }
 
 async function fetchTasks() {
-  const { data, error } = await sb.from("tasks").select("*").order("position");
+  const boardId = currentBoardId;
+  if (!boardId) { tasks = []; render(); return; }
+  const { data, error } = await sb.from("tasks").select("*").eq("board_id", boardId).order("position");
+  if (boardId !== currentBoardId) return;          // cambiaste de tablero mientras cargaba
   if (error) { showError(error); return; }
   tasks = data.map(fromRow);
   sortTasks();
   render();
+}
+
+/* =========================================================
+   2a. TABLEROS Y PERFIL
+   Cada usuario tiene su tablero personal. El admin crea tableros
+   compartidos y elige sus miembros. Los permisos los aplica la base.
+   ========================================================= */
+const BOARD_KEY = "kanban.board";
+let me = null;                 // { id, email, is_admin }
+let boards = [];               // [{ id, kind, name, owner_id }]
+let profiles = [];             // solo el admin: todos los usuarios
+let currentBoardId = null;
+
+const emailName = (email) => (email || "").split("@")[0];
+function boardLabel(b) {
+  if (b.kind === "shared") return b.name;
+  if (b.owner_id === me?.id) return "Mi tablero";
+  const p = profiles.find((x) => x.id === b.owner_id);
+  return "De " + (p ? emailName(p.email) : "otro usuario");
+}
+
+async function loadContext(session) {
+  const uid = session.user.id;
+  const [{ data: prof }, { data: bs }] = await Promise.all([
+    sb.from("profiles").select("id,email,is_admin").eq("id", uid).maybeSingle(),
+    sb.from("boards").select("id,kind,name,owner_id").order("created_at"),
+  ]);
+  me = prof || { id: uid, email: session.user.email, is_admin: false };
+  boards = bs || [];
+  profiles = [];
+  if (me.is_admin) {
+    const { data: ps } = await sb.from("profiles").select("id,email,is_admin").order("email");
+    profiles = ps || [];
+  }
+  $("#btn-boards").hidden = !me.is_admin;
+
+  let saved = null;
+  try { saved = localStorage.getItem(BOARD_KEY); } catch { /* sin almacenamiento */ }
+  const own = boards.find((b) => b.kind === "personal" && b.owner_id === me.id);
+  currentBoardId = boards.some((b) => b.id === saved) ? saved : (own?.id || boards[0]?.id || null);
+  renderBoardSelect();
+}
+
+function renderBoardSelect() {
+  const sel = $("#board-select");
+  const groups = [
+    ["", boards.filter((b) => b.kind === "personal" && b.owner_id === me.id)],
+    ["Compartidos", boards.filter((b) => b.kind === "shared").sort((a, b) => a.name.localeCompare(b.name))],
+    ["De otros usuarios", boards.filter((b) => b.kind === "personal" && b.owner_id !== me.id)
+      .sort((a, b) => boardLabel(a).localeCompare(boardLabel(b)))],
+  ];
+  sel.replaceChildren();
+  for (const [label, list] of groups) {
+    if (!list.length) continue;
+    const parent = label ? Object.assign(document.createElement("optgroup"), { label }) : sel;
+    for (const b of list) parent.append(new Option(boardLabel(b), b.id, false, b.id === currentBoardId));
+    if (label) sel.append(parent);
+  }
+  sel.value = currentBoardId || "";
+  document.title = sel.selectedOptions[0]?.text || "Mis tareas";
+}
+
+function switchBoard(id) {
+  if (!id || id === currentBoardId) return;
+  currentBoardId = id;
+  try { localStorage.setItem(BOARD_KEY, id); } catch { /* ignorar */ }
+  tasks = [];
+  render();
+  renderBoardSelect();
+  fetchTasks();
 }
 
 /* Aplica el cambio en pantalla al instante y lo confirma con la base */
@@ -1135,6 +1320,7 @@ const store = {
     const col = data.column || COLUMNS[0].id;
     const maxOrder = Math.max(0, ...tasks.filter((t) => t.column === col).map((t) => t.order));
     const row = toRow({ priority: "media", ...data, column: col, order: maxOrder + 1 });
+    row.board_id = currentBoardId;
     const { data: saved, error } = await sb.from("tasks").insert(row).select().single();
     if (error) throw error;
     const task = fromRow(saved);
@@ -1218,17 +1404,21 @@ loginForm.addEventListener("submit", async (e) => {
   }
 });
 
-function showApp(session) {
+let loadedFor = null;
+async function showApp(session) {
   const loggedIn = Boolean(session);
   loginEl.hidden = loggedIn;
   appEl.hidden = !loggedIn;
-  if (loggedIn && !channel) {
+  if (loggedIn && loadedFor !== session.user.id) {
+    loadedFor = session.user.id;
+    await loadContext(session);
     fetchTasks();
-    subscribe();
+    if (!channel) subscribe();
   }
-  if (!loggedIn && channel) {
-    sb.removeChannel(channel);
-    channel = null;
+  if (!loggedIn) {
+    if (channel) { sb.removeChannel(channel); channel = null; }
+    loadedFor = null;
+    me = null; boards = []; profiles = []; currentBoardId = null;
     tasks = [];
   }
 }
@@ -1544,6 +1734,7 @@ ask.addEventListener("submit", async (e) => {
     sb.functions.invoke("pedido", {
       body: {
         request,
+        boardId: currentBoardId,
         today: todayISO(),
         todayLong: now.toLocaleDateString("es-AR", { weekday: "long", day: "numeric", month: "long", year: "numeric" }),
       },
@@ -1695,6 +1886,166 @@ document.addEventListener("focusout", () => {
   }, 150);
 });
 askInput.addEventListener("input", autosize);
+
+
+/* =========================================================
+   7c. TABLEROS COMPARTIDOS (solo administrador)
+   ========================================================= */
+const boardsModal = $("#boards-modal");
+const boardsList = $("#boards-list");
+const boardEditor = $("#board-editor");
+const boardsTitle = $("#boards-title");
+const boardsAction = $("#boards-action");
+const boardsBack = $("#boards-back");
+const boardDelete = $("#board-delete");
+const boardName = $("#board-name");
+const boardMembers = $("#board-members");
+const boardMsg = $("#board-msg");
+let editingBoard = null;        // null = lista; "new" = nuevo; uuid = editando
+let memberRows = [];            // [{ board_id, user_id }]
+let boardDeleteTimer = null;
+
+async function loadMembers() {
+  const { data } = await sb.from("board_members").select("board_id,user_id");
+  memberRows = data || [];
+}
+
+async function reloadBoards() {
+  const { data } = await sb.from("boards").select("id,kind,name,owner_id").order("created_at");
+  boards = data || [];
+  if (!boards.some((b) => b.id === currentBoardId)) {
+    currentBoardId = boards.find((b) => b.kind === "personal" && b.owner_id === me.id)?.id || null;
+    fetchTasks();
+  }
+  renderBoardSelect();
+}
+
+function showBoardsList() {
+  editingBoard = null;
+  boardsTitle.textContent = "Tableros compartidos";
+  boardsBack.textContent = "Cerrar";
+  boardsAction.textContent = "Nuevo";
+  boardDelete.hidden = true;
+  boardEditor.hidden = true;
+  boardsList.hidden = false;
+  const shared = boards.filter((b) => b.kind === "shared").sort((a, b) => a.name.localeCompare(b.name));
+  boardsList.replaceChildren();
+  if (!shared.length) {
+    const p = document.createElement("p");
+    p.className = "boards-list__empty";
+    p.textContent = "Todavía no hay tableros compartidos. Tocá Nuevo para crear el primero.";
+    boardsList.append(p);
+    return;
+  }
+  for (const b of shared) {
+    const n = memberRows.filter((m) => m.board_id === b.id).length;
+    const item = document.createElement("button");
+    item.type = "button";
+    item.className = "boards-list__item";
+    const name = Object.assign(document.createElement("span"), { className: "boards-list__name", textContent: b.name });
+    const count = Object.assign(document.createElement("span"), {
+      className: "boards-list__count",
+      textContent: n === 1 ? "1 miembro" : `${n} miembros`,
+    });
+    item.append(name, count);
+    item.addEventListener("click", () => editBoard(b.id));
+    boardsList.append(item);
+  }
+}
+
+function editBoard(id) {
+  editingBoard = id;
+  const board = boards.find((b) => b.id === id);
+  boardsTitle.textContent = id === "new" ? "Nuevo tablero" : "Editar tablero";
+  boardsBack.textContent = "Volver";
+  boardsAction.textContent = "Guardar";
+  boardDelete.hidden = id === "new";
+  resetBoardDelete();
+  boardsList.hidden = true;
+  boardEditor.hidden = false;
+  boardMsg.textContent = "";
+  boardName.value = board?.name || "";
+
+  const current = new Set(memberRows.filter((m) => m.board_id === id).map((m) => m.user_id));
+  boardMembers.replaceChildren();
+  for (const p of profiles) {
+    const row = document.createElement("label");
+    row.className = "member";
+    const box = Object.assign(document.createElement("input"), { type: "checkbox", value: p.id, checked: current.has(p.id) });
+    const email = Object.assign(document.createElement("span"), { className: "member__email", textContent: p.email });
+    row.append(box, email);
+    if (p.is_admin) row.append(Object.assign(document.createElement("span"), { className: "member__tag", textContent: "admin" }));
+    boardMembers.append(row);
+  }
+  if (id === "new") boardName.focus();
+}
+
+async function saveBoard() {
+  const name = boardName.value.trim();
+  if (!name) { boardMsg.textContent = "Poné un nombre para el tablero."; boardName.focus(); return; }
+  boardsAction.disabled = true;
+  boardMsg.textContent = "";
+  try {
+    let id = editingBoard;
+    if (id === "new") {
+      const { data, error } = await sb.from("boards").insert({ kind: "shared", name, created_by: me.id }).select("id").single();
+      if (error) throw error;
+      id = data.id;
+    } else {
+      const { error } = await sb.from("boards").update({ name }).eq("id", id);
+      if (error) throw error;
+    }
+    const wanted = new Set([...boardMembers.querySelectorAll("input:checked")].map((i) => i.value));
+    const had = new Set(memberRows.filter((m) => m.board_id === id).map((m) => m.user_id));
+    const toAdd = [...wanted].filter((u) => !had.has(u)).map((user_id) => ({ board_id: id, user_id }));
+    const toRemove = [...had].filter((u) => !wanted.has(u));
+    if (toAdd.length) {
+      const { error } = await sb.from("board_members").insert(toAdd);
+      if (error) throw error;
+    }
+    if (toRemove.length) {
+      const { error } = await sb.from("board_members").delete().eq("board_id", id).in("user_id", toRemove);
+      if (error) throw error;
+    }
+    await Promise.all([loadMembers(), reloadBoards()]);
+    showBoardsList();
+  } catch (err) {
+    console.error(err);
+    boardMsg.textContent = "No se pudo guardar el tablero. Probá de nuevo.";
+  } finally {
+    boardsAction.disabled = false;
+  }
+}
+
+function resetBoardDelete() {
+  clearTimeout(boardDeleteTimer);
+  boardDelete.classList.remove("is-confirming");
+}
+boardDelete.addEventListener("click", async () => {
+  if (!boardDelete.classList.contains("is-confirming")) {
+    boardDelete.classList.add("is-confirming");
+    boardDeleteTimer = setTimeout(resetBoardDelete, 4000);
+    return;
+  }
+  resetBoardDelete();
+  const { error } = await sb.from("boards").delete().eq("id", editingBoard);
+  if (error) { boardMsg.textContent = "No se pudo eliminar el tablero."; return; }
+  await Promise.all([loadMembers(), reloadBoards()]);
+  showBoardsList();
+});
+
+boardsAction.addEventListener("click", () => (editingBoard ? saveBoard() : editBoard("new")));
+boardsBack.addEventListener("click", () => (editingBoard ? showBoardsList() : boardsModal.close()));
+boardEditor.addEventListener("submit", (e) => { e.preventDefault(); saveBoard(); });
+
+$("#btn-boards").addEventListener("click", async () => {
+  await loadMembers();
+  showBoardsList();
+  boardsModal.showModal();
+  syncViewport();
+});
+
+$("#board-select").addEventListener("change", (e) => switchBoard(e.target.value));
 
 /* =========================================================
    8. ACCIONES DEL HEADER (tema, búsqueda, exportar, importar)
