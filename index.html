@@ -822,6 +822,16 @@ html:has(.app:not([hidden])), html:has(.app:not([hidden])) body { overflow: hidd
 .field-row .input { min-width: 0; }
 input[type="date"].input { min-height: var(--tap); -webkit-appearance: none; appearance: none; }
 
+/* Google Calendar */
+.gcal { align-self: flex-start; text-decoration: none; }
+.card__when { font-weight: 700; color: var(--card-ink); }
+.card__when:empty { display: none; }
+.modal__spacer { width: 80px; flex-shrink: 0; }
+.cal-body p { max-width: 60ch; }
+.cal-btn { align-self: flex-start; display: inline-flex; align-items: center; text-decoration: none; }
+.cal-note { font-size: var(--fs-sm); color: var(--text-muted); }
+#cal-url { font-size: var(--fs-sm); }
+
 /* Administración de tableros */
 .boards-list { display: flex; flex-direction: column; gap: var(--space-2); }
 .boards-list__item {
@@ -978,6 +988,7 @@ input[type="date"].input { min-height: var(--tap); -webkit-appearance: none; app
       <div class="menu" id="menu" role="menu" hidden>
         <button class="menu__item" id="btn-boards" type="button" role="menuitem" hidden>Tableros compartidos</button>
         <a class="menu__item" id="btn-escriba" href="escriba/" role="menuitem" hidden>Escriba clínico (prueba)</a>
+        <button class="menu__item" id="btn-cal" type="button" role="menuitem" hidden>Ver en Google Calendar</button>
         <button class="menu__item" id="btn-theme" type="button" role="menuitem">Cambiar tema</button>
         <button class="menu__item" id="btn-export" type="button" role="menuitem">Exportar respaldo</button>
         <label class="menu__item" for="input-import" role="menuitem">Importar respaldo</label>
@@ -1051,6 +1062,7 @@ input[type="date"].input { min-height: var(--tap); -webkit-appearance: none; app
       </dl>
       <div class="card__meta">
         <span class="card__tag"></span>
+        <span class="card__when"></span>
         <span class="card__due"></span>
       </div>
       <button class="card__move" type="button"></button>
@@ -1061,6 +1073,31 @@ input[type="date"].input { min-height: var(--tap); -webkit-appearance: none; app
 <!-- =====================================================
      MODAL — crear / editar tarea
      ===================================================== -->
+<!-- =====================================================
+     CALENDARIO SUSCRIPTO
+     ===================================================== -->
+<dialog class="modal" id="cal-modal">
+  <div class="modal__form">
+    <header class="modal__head">
+      <button class="btn btn--ghost modal__cancel" id="cal-close" type="button">Cerrar</button>
+      <h2 class="modal__title">Google Calendar</h2>
+      <span class="modal__spacer"></span>
+    </header>
+    <div class="modal__body cal-body">
+      <p>Tus tareas con fecha aparecen solas en un calendario aparte llamado <b>Mis tareas</b>: las que tienen "Hacer el" a esa hora, y las que solo tienen vencimiento como evento de todo el día. Las de "Hecho" no aparecen.</p>
+      <a class="btn btn--primary cal-btn" id="cal-google" href="#" target="_blank" rel="noopener">Agregar a Google Calendar</a>
+      <p class="cal-note">Se hace una sola vez. Google actualiza estos calendarios cada algunas horas, así que los cambios no aparecen al instante. Para ver una tarea ya, usá "Agregar a Google Calendar" dentro de la tarjeta.</p>
+      <a class="btn btn--ghost cal-btn" id="cal-apple" href="#">Agregar al Calendario del iPhone</a>
+      <label class="field">
+        <span class="field__label">Enlace del calendario (si Google pide "Desde URL")</span>
+        <input class="input" id="cal-url" readonly>
+      </label>
+      <button class="btn btn--ghost cal-btn" id="cal-copy" type="button">Copiar enlace</button>
+      <p class="cal-note">Este enlace es personal: quien lo tenga ve tus tareas con fecha. No lo compartas.</p>
+    </div>
+  </div>
+</dialog>
+
 <!-- =====================================================
      TABLEROS COMPARTIDOS — solo administrador
      ===================================================== -->
@@ -1147,6 +1184,13 @@ input[type="date"].input { min-height: var(--tap); -webkit-appearance: none; app
         </label>
       </div>
 
+      <label class="field">
+        <span class="field__label">Hacer el (fecha y hora, opcional)</span>
+        <input class="input" type="datetime-local" id="f-scheduled" name="scheduled">
+      </label>
+
+      <a class="btn btn--ghost gcal" id="btn-gcal" href="#" target="_blank" rel="noopener" hidden>Agregar a Google Calendar</a>
+
     </div>
   </form>
 </dialog>
@@ -1177,7 +1221,17 @@ const COLUMNS = [
 
 const PRIORITIES = { alta: "Alta", media: "Media", baja: "Baja" };
 
-const FIELDS = ["title", "desc", "requester", "contact", "priority", "column", "tag", "due"];
+const FIELDS = ["title", "desc", "requester", "contact", "priority", "column", "tag", "due", "scheduled"];
+
+/* "Hacer el": en pantalla se maneja como hora local ("2026-11-12T10:00");
+   en la base se guarda con zona horaria (timestamptz), compatible con Google Calendar */
+const p2 = (n) => String(n).padStart(2, "0");
+function isoToLocal(iso) {
+  if (!iso) return "";
+  const d = new Date(iso);
+  return `${d.getFullYear()}-${p2(d.getMonth() + 1)}-${p2(d.getDate())}T${p2(d.getHours())}:${p2(d.getMinutes())}`;
+}
+const localToIso = (local) => (local ? new Date(local).toISOString() : null);
 const THEME_KEY = "kanban.theme";      // preferencia de tema de cada persona
 
 /* =========================================================
@@ -1210,6 +1264,7 @@ function fromRow(r) {
     column: COLUMNS.some((c) => c.id === r.status) ? r.status : COLUMNS[0].id,
     tag: r.tag || "",
     due: r.due || "",
+    scheduled: isoToLocal(r.scheduled_at),
     order: Number(r.position) || 0,
   };
 }
@@ -1224,6 +1279,7 @@ function toRow(t) {
   if ("column" in t) row.status = COLUMNS.some((c) => c.id === t.column) ? t.column : COLUMNS[0].id;
   if ("tag" in t) row.tag = t.tag;
   if ("due" in t) row.due = t.due || null;
+  if ("scheduled" in t) row.scheduled_at = localToIso(t.scheduled);
   if ("order" in t) row.position = t.order;
   return row;
 }
@@ -1272,7 +1328,7 @@ function boardLabel(b) {
 async function loadContext(session) {
   const uid = session.user.id;
   const [{ data: prof }, { data: bs }] = await Promise.all([
-    sb.from("profiles").select("id,email,is_admin").eq("id", uid).maybeSingle(),
+    sb.from("profiles").select("id,email,is_admin,calendar_token").eq("id", uid).maybeSingle(),
     sb.from("boards").select("id,kind,name,owner_id").order("created_at"),
   ]);
   me = prof || { id: uid, email: session.user.email, is_admin: false };
@@ -1282,6 +1338,8 @@ async function loadContext(session) {
     const { data: ps } = await sb.from("profiles").select("id,email,is_admin").order("email");
     profiles = ps || [];
   }
+  calendarToken = me.calendar_token || null;
+  $("#btn-cal").hidden = !calendarToken;
   $("#btn-boards").hidden = !me.is_admin;
   $("#btn-escriba").hidden = !me.is_admin;
 
@@ -1527,6 +1585,13 @@ function renderCard(task) {
   tag.textContent = task.tag;
   tag.hidden = !task.tag;
 
+  const when = $(".card__when", card);
+  if (task.scheduled) {
+    const d = new Date(task.scheduled);
+    when.textContent = "Hacer " + d.toLocaleDateString("es-AR", { weekday: "short", day: "numeric", month: "short" })
+      + " " + d.toLocaleTimeString("es-AR", { hour: "2-digit", minute: "2-digit" });
+  }
+
   const due = $(".card__due", card);
   if (task.due) {
     const date = new Date(task.due + "T00:00");
@@ -1626,6 +1691,74 @@ function fillSelects() {
   fields.column.replaceChildren(...COLUMNS.map((c) => new Option(c.title, c.id)));
 }
 
+/* =========================================================
+   GOOGLE CALENDAR
+   - Botón por tarjeta: abre Google Calendar con el evento cargado.
+   - Calendario suscripto: feed iCal con todas las tareas con fecha.
+   ========================================================= */
+const ymdCompact = (d) => d.replace(/-/g, "");
+const utcCompact = (d) => d.toISOString().replace(/[-:]/g, "").replace(/\.\d{3}/, "");
+function nextDayCompact(ymd) {
+  const d = new Date(ymd + "T12:00:00");
+  d.setDate(d.getDate() + 1);
+  return `${d.getFullYear()}${p2(d.getMonth() + 1)}${p2(d.getDate())}`;
+}
+
+function gcalUrl(data) {
+  let dates = "";
+  if (data.scheduled) {
+    const start = new Date(data.scheduled);
+    dates = `${utcCompact(start)}/${utcCompact(new Date(start.getTime() + 3600000))}`;
+  } else if (data.due) {
+    dates = `${ymdCompact(data.due)}/${nextDayCompact(data.due)}`;   // todo el día; fin exclusivo
+  } else return "";
+  const details = [
+    data.desc,
+    data.requester && `Pidió: ${data.requester}`,
+    data.contact && `Hablar con: ${data.contact}`,
+    data.scheduled && data.due && `Vence: ${data.due.split("-").reverse().join("/")}`,
+    "https://cocho92.github.io/tareas/",
+  ].filter(Boolean).join("\n");
+  const q = new URLSearchParams({ action: "TEMPLATE", text: data.title || "Tarea", dates, details, ctz: "America/Argentina/Cordoba" });
+  return "https://calendar.google.com/calendar/render?" + q.toString();
+}
+
+function updateGcal() {
+  const data = {};
+  for (const f of FIELDS) data[f] = fields[f].value.trim();
+  const url = gcalUrl(data);
+  const btn = $("#btn-gcal");
+  btn.hidden = !url;
+  if (url) btn.href = url;
+}
+["title", "desc", "due", "scheduled", "requester", "contact"].forEach((f) => fields[f].addEventListener("input", updateGcal));
+fields.due.addEventListener("change", updateGcal);
+fields.scheduled.addEventListener("change", updateGcal);
+
+/* Calendario suscripto */
+const calModal = $("#cal-modal");
+let calendarToken = null;
+function feedUrl() {
+  return `${window.KANBAN_CONFIG.supabaseUrl}/functions/v1/calendario?token=${calendarToken}`;
+}
+$("#btn-cal").addEventListener("click", () => {
+  if (!calendarToken) return;
+  const https = feedUrl();
+  const webcal = https.replace(/^https:/, "webcal:");
+  $("#cal-url").value = https;
+  $("#cal-google").href = "https://calendar.google.com/calendar/render?cid=" + encodeURIComponent(webcal);
+  $("#cal-apple").href = webcal;
+  calModal.showModal();
+  syncViewport();
+});
+$("#cal-close").addEventListener("click", () => calModal.close());
+$("#cal-copy").addEventListener("click", async () => {
+  const btn = $("#cal-copy");
+  try { await navigator.clipboard.writeText($("#cal-url").value); btn.textContent = "Copiado"; }
+  catch { $("#cal-url").select(); btn.textContent = "Seleccionado: copialo"; }
+  setTimeout(() => (btn.textContent = "Copiar enlace"), 2500);
+});
+
 /* La descripción crece hasta mostrar todo el texto */
 const descField = document.getElementById("f-desc");
 function growDesc() {
@@ -1645,10 +1778,11 @@ function openModal(id, columnId = COLUMNS[0].id) {
   editingId = id;
   const task = id
     ? tasks.find((t) => t.id === id)
-    : { title: "", desc: "", requester: "", contact: "", priority: "media", tag: "", due: "", column: columnId };
+    : { title: "", desc: "", requester: "", contact: "", priority: "media", tag: "", due: "", scheduled: "", column: columnId };
 
   $("#modal-title").textContent = id ? "Editar tarea" : "Nueva tarea";
-  for (const f of FIELDS) fields[f].value = task[f];
+  for (const f of FIELDS) fields[f].value = task[f] || "";
+  updateGcal();
   resetDelete();
   $("#btn-delete").hidden = !id;
 
@@ -1785,7 +1919,7 @@ ask.addEventListener("submit", async (e) => {
    ========================================================= */
 const recBtn = $("#ask-rec");
 const MAX_REC_SECONDS = 120;
-const APP_VERSION = "6-nov · menú";
+const APP_VERSION = "6-nov · calendario";
 let recorder = null;
 let recChunks = [];
 let recTimer = null;
