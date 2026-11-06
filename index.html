@@ -376,6 +376,7 @@ select.input option { background: var(--surface); color: var(--text); }
 }
 .menu__item:hover, .menu__item:focus-visible { background: var(--surface); }
 #btn-logout { color: var(--danger); }
+.menu__version { margin: 0; padding: var(--space-2) var(--space-3) var(--space-1); font-size: var(--fs-xs); color: var(--text-muted); }
 
 /* Atajos a columnas */
 .colnav {
@@ -979,6 +980,7 @@ input[type="date"].input { min-height: var(--tap); -webkit-appearance: none; app
         <button class="menu__item" id="btn-export" type="button" role="menuitem">Exportar respaldo</button>
         <label class="menu__item" for="input-import" role="menuitem">Importar respaldo</label>
         <button class="menu__item" id="btn-logout" type="button" role="menuitem">Cerrar sesión</button>
+        <p class="menu__version" id="app-version"></p>
       </div>
       <input type="file" id="input-import" accept="application/json" hidden>
     </div>
@@ -1780,6 +1782,7 @@ ask.addEventListener("submit", async (e) => {
    ========================================================= */
 const recBtn = $("#ask-rec");
 const MAX_REC_SECONDS = 120;
+const APP_VERSION = "6-nov · audio 2";
 let recorder = null;
 let recChunks = [];
 let recTimer = null;
@@ -1845,14 +1848,17 @@ function stopRecording() {
   if (recorder && recorder.state !== "inactive") recorder.stop();
 }
 
-if (navigator.mediaDevices?.getUserMedia && window.MediaRecorder) {
-  recBtn.hidden = false;
-  recBtn.addEventListener("click", () => {
-    if (ask.classList.contains("is-busy")) return;
-    if (recorder) stopRecording();
-    else startRecording();
-  });
-}
+// El botón se muestra siempre; si el navegador no permite grabar, se explica al tocarlo
+recBtn.hidden = false;
+recBtn.addEventListener("click", () => {
+  if (ask.classList.contains("is-busy")) return;
+  if (!navigator.mediaDevices?.getUserMedia || !window.MediaRecorder) {
+    setReply("Este navegador no permite grabar audio desde la página. Probá abrir el tablero en Safari actualizado, o usá el micrófono del teclado.", { error: true });
+    return;
+  }
+  if (recorder) stopRecording();
+  else startRecording();
+});
 
 /* Dictado por voz (Web Speech API del navegador).
    Tocás el micrófono, hablás (las pausas no cortan) y volvés a tocarlo
@@ -2183,6 +2189,9 @@ btnSearch.addEventListener("click", () => {
   if (open) $("#search").focus();
   else { $("#search").value = ""; render(); }
 });
+
+/* Versión visible al pie del menú, para saber si el celular tiene la última */
+document.getElementById("app-version").textContent = "Versión " + APP_VERSION;
 
 /* Menú de opciones */
 const btnMenu = $("#btn-menu");
