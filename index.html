@@ -763,8 +763,22 @@ html:has(.app:not([hidden])), html:has(.app:not([hidden])) body { overflow: hidd
   scroll-padding-block: var(--space-4);
 }
 
-.modal__delete { align-self: flex-start; margin-top: var(--space-2); padding-left: 0; }
-.btn--danger.is-confirming { background: var(--danger); color: var(--primary-text); padding: 0 var(--space-4); }
+/* Eliminar: tacho en la barra superior; el primer toque pide confirmación */
+.modal__delete { color: var(--danger); }
+.modal__delete-label { display: none; }
+.modal__delete.is-confirming {
+  width: auto;
+  font-size: var(--fs-sm);
+  padding: 0 var(--space-3);
+  border-color: var(--danger);
+  color: var(--primary-text);
+  background: var(--danger);
+}
+.modal__delete.is-confirming svg { display: none; }
+.modal__delete.is-confirming .modal__delete-label { display: inline; }
+/* Mientras confirma, el título se oculta para dejar lugar */
+.modal__head:has(.is-confirming) .modal__title { visibility: hidden; }
+.modal__title { min-width: 0; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
 
 .field { display: flex; flex-direction: column; gap: var(--space-1); min-width: 0; }
 .field__label { font-size: var(--fs-sm); font-weight: 600; color: var(--text-muted); }
@@ -967,6 +981,7 @@ input[type="date"].input { min-height: var(--tap); -webkit-appearance: none; app
     <header class="modal__head">
       <button class="btn btn--ghost modal__cancel" id="btn-cancel" type="button">Cancelar</button>
       <h2 class="modal__title" id="modal-title">Nueva tarea</h2>
+      <button class="btn btn--ghost btn--icon modal__delete" id="btn-delete" type="button" aria-label="Eliminar tarea" title="Eliminar tarea"><svg viewBox="0 0 24 24" width="20" height="20" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 7h16M10 11v6M14 11v6M6 7l1 13h10l1-13M9 7V4h6v3"/></svg><span class="modal__delete-label">¿Eliminar?</span></button>
       <button class="btn btn--primary" type="submit">Guardar</button>
     </header>
 
@@ -1014,7 +1029,6 @@ input[type="date"].input { min-height: var(--tap); -webkit-appearance: none; app
         </label>
       </div>
 
-      <button class="btn btn--danger modal__delete" id="btn-delete" type="button">Eliminar tarea</button>
     </div>
   </form>
 </dialog>
@@ -1419,6 +1433,13 @@ function growDesc() {
   descField.style.height = "auto";
   descField.style.height = descField.scrollHeight + 2 + "px";
 }
+// iOS a veces mide antes de dibujar el formulario: se vuelve a medir enseguida
+function growDescSoon() {
+  growDesc();
+  requestAnimationFrame(growDesc);
+  setTimeout(growDesc, 120);
+  setTimeout(growDesc, 350);
+}
 descField.addEventListener("input", growDesc);
 
 function openModal(id, columnId = COLUMNS[0].id) {
@@ -1434,7 +1455,7 @@ function openModal(id, columnId = COLUMNS[0].id) {
 
   modal.showModal();
   syncViewport();
-  growDesc();
+  growDescSoon();
   $(".modal__body").scrollTop = 0;
   // Solo abre el teclado al crear; al editar primero se ve la tarjeta
   if (!id) fields.title.focus();
@@ -1463,14 +1484,15 @@ form.addEventListener("submit", async (e) => {
 
 /* Eliminar en dos pasos (la página no puede usar confirm()) */
 const btnDelete = $("#btn-delete");
+let deleteTimer = null;
 function resetDelete() {
-  btnDelete.textContent = "Eliminar tarea";
+  clearTimeout(deleteTimer);
   btnDelete.classList.remove("is-confirming");
 }
 btnDelete.addEventListener("click", async () => {
   if (!btnDelete.classList.contains("is-confirming")) {
-    btnDelete.textContent = "Sí, eliminar";
     btnDelete.classList.add("is-confirming");
+    deleteTimer = setTimeout(resetDelete, 4000);   // si no confirma, vuelve al tacho
     return;
   }
   const id = editingId;
