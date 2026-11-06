@@ -1423,7 +1423,9 @@ async function showApp(session) {
   }
 }
 
-sb.auth.onAuthStateChange((_event, session) => showApp(session));
+// Importante: no llamar a Supabase dentro de este aviso (se traba la sesión).
+// Se difiere con setTimeout, como recomienda la documentación de Supabase.
+sb.auth.onAuthStateChange((_event, session) => { setTimeout(() => showApp(session), 0); });
 
 /* =========================================================
    3. HELPERS DOM
