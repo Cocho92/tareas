@@ -442,7 +442,8 @@ select.input option { background: var(--surface); color: var(--text); }
   border-radius: var(--radius-control);
   background: var(--surface);
 }
-.ask__reply { flex: 1; font-size: var(--fs-sm); line-height: 1.4; color: var(--text); }
+.ask__reply { flex: 1; font-size: var(--fs-sm); line-height: 1.4; color: var(--text); white-space: pre-line; }
+.ask__rec { color: var(--primary); }
 .ask__reply.is-error { color: var(--danger); }
 .ask__close {
   display: grid;
@@ -1011,6 +1012,7 @@ input[type="date"].input { min-height: var(--tap); -webkit-appearance: none; app
     </button>
     <label class="visually-hidden" for="ask-input">Pedile a Claude</label>
     <textarea class="input ask__input" id="ask-input" rows="1" enterkeyhint="send" placeholder="Pedile algo a Claude…"></textarea>
+    <button class="btn btn--ghost btn--icon ask__mic ask__rec" id="ask-rec" type="button" title="Grabar y enviar" aria-label="Grabar audio y crear la tarjeta" aria-pressed="false" hidden><svg viewBox="0 0 24 24" width="20" height="20" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M4 10v4M8 7v10M12 4v16M16 8v8M20 11v2"/></svg></button>
     <button class="btn btn--primary btn--icon ask__send" id="ask-send" type="submit" aria-label="Enviar"><svg viewBox="0 0 24 24" width="20" height="20" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14M13 6l6 6-6 6"/></svg></button>
   </div>
 </form>
@@ -1718,46 +1720,139 @@ function setReply(text, { error = false, sticky = false } = {}) {
 }
 $("#ask-close").addEventListener("click", () => setReply(""));
 
-ask.addEventListener("submit", async (e) => {
-  e.preventDefault();
-  const request = askInput.value.trim();
-  if (!request || ask.classList.contains("is-busy")) return;
-
+/* Envía un pedido a la función "pedido": texto (JSON) o audio (FormData) */
+async function sendPedido(payload, { audio = false } = {}) {
   ask.classList.add("is-busy");
-  setReply("Pensando…", { sticky: true });
+  setReply(audio ? "Transcribiendo el audio…" : "Pensando…", { sticky: true });
 
   const now = new Date();
-  // Nunca quedarse colgado: si en 70 s no hay respuesta, se avisa
+  const ctx = {
+    boardId: currentBoardId,
+    today: todayISO(),
+    todayLong: now.toLocaleDateString("es-AR", { weekday: "long", day: "numeric", month: "long", year: "numeric" }),
+  };
+  let body;
+  if (audio) {
+    body = new FormData();
+    body.append("audio", payload.blob, payload.filename);
+    for (const [k, v] of Object.entries(ctx)) body.append(k, v);
+  } else {
+    body = { request: payload.text, ...ctx };
+  }
+
+  // Nunca quedarse colgado: si no hay respuesta a tiempo, se avisa
   const timeout = new Promise((resolve) => setTimeout(() => resolve({
     data: { ok: false, error: "La IA tardó demasiado en responder. Revisá si la tarjeta se creó y, si no, probá de nuevo." },
-  }), 70000));
-  const slowNote = setTimeout(() => setReply("Sigue pensando… la IA gratis a veces tarda.", { sticky: true }), 12000);
-  const { data, error } = await Promise.race([
-    sb.functions.invoke("pedido", {
-      body: {
-        request,
-        boardId: currentBoardId,
-        today: todayISO(),
-        todayLong: now.toLocaleDateString("es-AR", { weekday: "long", day: "numeric", month: "long", year: "numeric" }),
-      },
-    }),
-    timeout,
-  ]);
+  }), audio ? 90000 : 70000));
+  const slowNote = setTimeout(() => setReply("Sigue pensando… la IA gratis a veces tarda.", { sticky: true }), audio ? 15000 : 12000);
+  const { data, error } = await Promise.race([sb.functions.invoke("pedido", { body }), timeout]);
   clearTimeout(slowNote);
   ask.classList.remove("is-busy");
   if (data?.created?.length) await fetchTasks();
 
   if (error || !data?.ok) {
-    setReply(data?.error || "No se pudo completar el pedido. Probá de nuevo.", { error: true });
-    return;
+    const heard = data?.transcript ? ` Entendí: «${data.transcript}»` : "";
+    setReply((data?.error || "No se pudo completar el pedido. Probá de nuevo.") + heard, { error: true });
+    return false;
   }
   for (const id of data.created || []) justAdded.add(id);
-  setReply(data.reply);
-  askInput.value = "";
-  autosize();
-  askInput.blur();          // baja el teclado para que se vea la tarjeta nueva
+  // Con audio se muestra lo que entendió, para poder verificarlo
+  setReply(data.transcript ? `${data.reply}\nEntendí: «${data.transcript}»` : data.reply, { sticky: Boolean(data.transcript) });
   await fetchTasks();
+  return true;
+}
+
+ask.addEventListener("submit", async (e) => {
+  e.preventDefault();
+  const request = askInput.value.trim();
+  if (!request || ask.classList.contains("is-busy")) return;
+  const ok = await sendPedido({ text: request });
+  if (ok) {
+    askInput.value = "";
+    autosize();
+    askInput.blur();          // baja el teclado para que se vea la tarjeta nueva
+  }
 });
+
+/* =========================================================
+   Grabar y enviar: graba un audio, lo transcribe Whisper (Groq)
+   en el servidor y la tarjeta se crea sola. No hay revisión previa.
+   ========================================================= */
+const recBtn = $("#ask-rec");
+const MAX_REC_SECONDS = 120;
+let recorder = null;
+let recChunks = [];
+let recTimer = null;
+let recStarted = 0;
+
+function pickMime() {
+  const options = ["audio/mp4", "audio/webm;codecs=opus", "audio/webm", "audio/ogg;codecs=opus"];
+  return options.find((m) => window.MediaRecorder?.isTypeSupported?.(m)) || "";
+}
+const extFor = (mime) => (mime.includes("mp4") ? "m4a" : mime.includes("ogg") ? "ogg" : "webm");
+
+function setRecording(on) {
+  recBtn.classList.toggle("is-listening", on);
+  recBtn.setAttribute("aria-pressed", String(on));
+  recBtn.title = on ? "Terminar y enviar" : "Grabar y enviar";
+  micBtnSafe(!on);
+}
+function micBtnSafe(enabled) {
+  const mic = document.getElementById("ask-mic");
+  if (mic) mic.disabled = !enabled;
+}
+
+async function startRecording() {
+  let stream;
+  try {
+    stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+  } catch {
+    setReply("No hay permiso para usar el micrófono. Habilitalo en los ajustes del sitio y probá de nuevo.", { error: true });
+    return;
+  }
+  const mime = pickMime();
+  recorder = new MediaRecorder(stream, mime ? { mimeType: mime } : undefined);
+  recChunks = [];
+  recorder.ondataavailable = (e) => { if (e.data.size) recChunks.push(e.data); };
+  recorder.onstop = async () => {
+    stream.getTracks().forEach((t) => t.stop());
+    clearInterval(recTimer);
+    setRecording(false);
+    const type = recorder.mimeType || mime || "audio/webm";
+    const blob = new Blob(recChunks, { type });
+    recorder = null;
+    const seconds = (Date.now() - recStarted) / 1000;
+    if (seconds < 1 || blob.size < 1000) {
+      setReply("El audio quedó muy corto. Tocá el botón, hablá y tocalo de nuevo para enviar.", { error: true });
+      return;
+    }
+    await sendPedido({ blob, filename: `pedido.${extFor(type)}` }, { audio: true });
+  };
+  recorder.start();
+  recStarted = Date.now();
+  setRecording(true);
+  const tick = () => {
+    const s = Math.floor((Date.now() - recStarted) / 1000);
+    const left = MAX_REC_SECONDS - s;
+    setReply(`Grabando ${Math.floor(s / 60)}:${String(s % 60).padStart(2, "0")}… tocá de nuevo para enviar.`, { sticky: true });
+    if (left <= 0) stopRecording();
+  };
+  tick();
+  recTimer = setInterval(tick, 500);
+}
+
+function stopRecording() {
+  if (recorder && recorder.state !== "inactive") recorder.stop();
+}
+
+if (navigator.mediaDevices?.getUserMedia && window.MediaRecorder) {
+  recBtn.hidden = false;
+  recBtn.addEventListener("click", () => {
+    if (ask.classList.contains("is-busy")) return;
+    if (recorder) stopRecording();
+    else startRecording();
+  });
+}
 
 /* Dictado por voz (Web Speech API del navegador).
    Tocás el micrófono, hablás (las pausas no cortan) y volvés a tocarlo
