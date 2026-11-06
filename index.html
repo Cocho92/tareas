@@ -233,6 +233,15 @@ h1, h2, h3, p { margin: 0; }
 .input::placeholder { color: var(--text-muted); }
 .input:focus { outline: none; border-color: var(--focus); }
 textarea.input { resize: vertical; line-height: 1.5; }
+
+/* Descripción del formulario: crece con el texto para leerla entera de un
+   vistazo; el formulario completo es el que scrollea */
+#f-desc {
+  min-height: calc(5 * 1.5em + 2 * var(--space-2));
+  resize: none;
+  overflow: hidden;
+  field-sizing: content;
+}
 select.input option { background: var(--surface); color: var(--text); }
 
 .spacer { flex: 1; }
@@ -1404,6 +1413,14 @@ function fillSelects() {
   fields.column.replaceChildren(...COLUMNS.map((c) => new Option(c.title, c.id)));
 }
 
+/* La descripción crece hasta mostrar todo el texto */
+const descField = document.getElementById("f-desc");
+function growDesc() {
+  descField.style.height = "auto";
+  descField.style.height = descField.scrollHeight + 2 + "px";
+}
+descField.addEventListener("input", growDesc);
+
 function openModal(id, columnId = COLUMNS[0].id) {
   editingId = id;
   const task = id
@@ -1417,6 +1434,7 @@ function openModal(id, columnId = COLUMNS[0].id) {
 
   modal.showModal();
   syncViewport();
+  growDesc();
   $(".modal__body").scrollTop = 0;
   // Solo abre el teclado al crear; al editar primero se ve la tarjeta
   if (!id) fields.title.focus();
